@@ -110,9 +110,16 @@ class SshRemoteServer : RsyncRemote() {
             file.writeText(key!!)
             args.addAll(arrayOf("ssh", "-i", file.path))
         }
-        Files.setPosixFilePermissions(file.toPath(), mutableSetOf(
-                PosixFilePermission.OWNER_READ
-        ))
+        
+        // Set file permissions only on POSIX-compliant systems (not Windows)
+        try {
+            Files.setPosixFilePermissions(file.toPath(), mutableSetOf(
+                    PosixFilePermission.OWNER_READ
+            ))
+        } catch (e: UnsupportedOperationException) {
+            // POSIX file permissions not supported on this platform (e.g., Windows)
+            // File permissions will be handled by the OS defaults
+        }
 
         if (remote["port"] != null) {
             args.addAll(arrayOf("-p", remote["port"].toString()))
