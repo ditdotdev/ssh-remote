@@ -17,9 +17,9 @@ import io.mockk.impl.annotations.MockK
 import io.mockk.impl.annotations.OverrideMockKs
 import java.io.Console
 import java.net.URI
+import kotlin.io.path.createTempFile
 
 class SshRemoteClientTest : StringSpec() {
-
     @MockK
     lateinit var console: Console
 
@@ -31,7 +31,10 @@ class SshRemoteClientTest : StringSpec() {
         return MockKAnnotations.init(this)
     }
 
-    override fun afterTest(testCase: TestCase, result: TestResult) {
+    override fun afterTest(
+        testCase: TestCase,
+        result: TestResult,
+    ) {
         clearAllMocks()
     }
 
@@ -113,61 +116,115 @@ class SshRemoteClientTest : StringSpec() {
         }
 
         "basic SSH remote to URI succeeds" {
-            val (uri, parameters) = client.toUri(mapOf("username" to "username", "address" to "host",
-                    "path" to "/path"))
+            val (uri, parameters) =
+                client.toUri(
+                    mapOf(
+                        "username" to "username",
+                        "address" to "host",
+                        "path" to "/path",
+                    ),
+                )
             uri shouldBe "ssh://username@host/path"
             parameters.size shouldBe 0
         }
 
         "SSH remote with password to URI succeeds" {
-            val (uri, parameters) = client.toUri(mapOf("username" to "username", "address" to "host",
-                    "path" to "/path", "password" to "pass"))
+            val (uri, parameters) =
+                client.toUri(
+                    mapOf(
+                        "username" to "username",
+                        "address" to "host",
+                        "path" to "/path",
+                        "password" to "pass",
+                    ),
+                )
             uri shouldBe "ssh://username:*****@host/path"
             parameters.size shouldBe 0
         }
 
         "SSH remote with port to URI succeeds" {
-            val (uri, parameters) = client.toUri(mapOf("username" to "username", "address" to "host",
-                    "path" to "/path", "port" to 812))
+            val (uri, parameters) =
+                client.toUri(
+                    mapOf(
+                        "username" to "username",
+                        "address" to "host",
+                        "path" to "/path",
+                        "port" to 812,
+                    ),
+                )
             uri shouldBe "ssh://username@host:812/path"
             parameters.size shouldBe 0
         }
 
         "SSH remote with relative path to URI succeeds" {
-            val (uri, parameters) = client.toUri(mapOf("username" to "username", "address" to "host",
-                    "path" to "path"))
+            val (uri, parameters) =
+                client.toUri(
+                    mapOf(
+                        "username" to "username",
+                        "address" to "host",
+                        "path" to "path",
+                    ),
+                )
             uri shouldBe "ssh://username@host/~/path"
             parameters.size shouldBe 0
         }
 
         "SSH remote with keyfile to URI succeeds" {
-            val (uri, parameters) = client.toUri(mapOf("username" to "username", "address" to "host",
-                    "path" to "/path", "keyFile" to "keyfile"))
+            val (uri, parameters) =
+                client.toUri(
+                    mapOf(
+                        "username" to "username",
+                        "address" to "host",
+                        "path" to "/path",
+                        "keyFile" to "keyfile",
+                    ),
+                )
             uri shouldBe "ssh://username@host/path"
             parameters.size shouldBe 1
             parameters["keyFile"] shouldBe "keyfile"
         }
 
         "SSH remote with port as double succeeds" {
-            val (uri, parameters) = client.toUri(mapOf("username" to "username", "address" to "host",
-                    "path" to "/path", "port" to 812.0))
+            val (uri, parameters) =
+                client.toUri(
+                    mapOf(
+                        "username" to "username",
+                        "address" to "host",
+                        "path" to "/path",
+                        "port" to 812.0,
+                    ),
+                )
             uri shouldBe "ssh://username@host:812/path"
             parameters.size shouldBe 0
         }
 
         "get basic SSH get parameters succeeds" {
-            val params = client.getParameters(mapOf("username" to "username", "address" to "host",
-                    "path" to "/path", "password" to "pass"))
+            val params =
+                client.getParameters(
+                    mapOf(
+                        "username" to "username",
+                        "address" to "host",
+                        "path" to "/path",
+                        "password" to "pass",
+                    ),
+                )
             params["password"] shouldBe null
             params["key"] shouldBe null
         }
 
         "get SSH parameters with keyfile succeeds" {
-            val keyFile = createTempFile()
+            val keyFile = createTempFile().toFile()
             try {
                 keyFile.writeText("KEY")
-                val params = client.getParameters(mapOf("username" to "username", "address" to "host",
-                        "path" to "/path", "keyFile" to keyFile.absolutePath))
+                val params =
+                    client.getParameters(
+                        mapOf(
+                            "username" to "username",
+                            "address" to "host",
+                            "path" to "/path",
+                            "keyFile" to keyFile.absolutePath,
+                        ),
+                    )
                 params["password"] shouldBe null
                 params["key"] shouldBe "KEY"
             } finally {
@@ -177,8 +234,14 @@ class SshRemoteClientTest : StringSpec() {
 
         "prompt for SSH password succeeds" {
             every { console.readPassword(any()) } returns "pass".toCharArray()
-            val params = client.getParameters(mapOf("username" to "username", "address" to "host",
-                    "path" to "/path"))
+            val params =
+                client.getParameters(
+                    mapOf(
+                        "username" to "username",
+                        "address" to "host",
+                        "path" to "/path",
+                    ),
+                )
             params["password"] shouldBe "pass"
             params["key"] shouldBe null
         }

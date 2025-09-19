@@ -18,9 +18,9 @@ import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.attribute.PosixFilePermission
 import java.util.concurrent.TimeUnit
+import kotlin.io.path.createTempFile
 
 class SshRemoteServer : RsyncRemote() {
-
     internal val executor = CommandExecutor()
     internal val gson = GsonBuilder().create()
     internal val util = RemoteServerUtil()
@@ -41,13 +41,14 @@ class SshRemoteServer : RsyncRemote() {
         for (prop in listOf("password", "port", "keyFile")) {
             if (remote.containsKey(prop)) {
                 if (prop == "port") {
-                    val port = if (remote[prop] is Double) {
-                        (remote[prop] as Double).toInt()
-                    } else if (remote[prop] is Int) {
-                        remote[prop] as Int
-                    } else {
-                        throw IllegalArgumentException("port must be a number or integer")
-                    }
+                    val port =
+                        if (remote[prop] is Double) {
+                            (remote[prop] as Double).toInt()
+                        } else if (remote[prop] is Int) {
+                            remote[prop] as Int
+                        } else {
+                            throw IllegalArgumentException("port must be a number or integer")
+                        }
                     validated[prop] = port
                 } else {
                     validated[prop] = remote[prop]!!.toString()
@@ -80,7 +81,10 @@ class SshRemoteServer : RsyncRemote() {
      * authentication or key-based authentication. It returns a pair where exactly one element must be set, either
      * the first (password) or second (key).
      */
-    internal fun getSshAuth(remote: Map<String, Any>, parameters: Map<String, Any>): Pair<String?, String?> {
+    internal fun getSshAuth(
+        remote: Map<String, Any>,
+        parameters: Map<String, Any>,
+    ): Pair<String?, String?> {
         if (parameters["password"] != null && parameters["key"] != null) {
             throw IllegalArgumentException("only one of password or key can be specified")
         } else if (remote["password"] != null || parameters["password"] != null) {
@@ -97,7 +101,7 @@ class SshRemoteServer : RsyncRemote() {
         parameters: Map<String, Any>,
         file: File,
         includeAddress: Boolean,
-        vararg command: String
+        vararg command: String,
     ): List<String> {
         val args = mutableListOf<String>()
 
@@ -110,12 +114,15 @@ class SshRemoteServer : RsyncRemote() {
             file.writeText(key!!)
             args.addAll(arrayOf("ssh", "-i", file.path))
         }
-        
+
         // Set file permissions only on POSIX-compliant systems (not Windows)
         try {
-            Files.setPosixFilePermissions(file.toPath(), mutableSetOf(
-                    PosixFilePermission.OWNER_READ
-            ))
+            Files.setPosixFilePermissions(
+                file.toPath(),
+                mutableSetOf(
+                    PosixFilePermission.OWNER_READ,
+                ),
+            )
         } catch (e: UnsupportedOperationException) {
             // POSIX file permissions not supported on this platform (e.g., Windows)
             // File permissions will be handled by the OS defaults
@@ -135,8 +142,12 @@ class SshRemoteServer : RsyncRemote() {
         return args
     }
 
-    internal fun runSsh(remote: Map<String, Any>, parameters: Map<String, Any>, vararg command: String): String {
-        val file = createTempFile()
+    internal fun runSsh(
+        remote: Map<String, Any>,
+        parameters: Map<String, Any>,
+        vararg command: String,
+    ): String {
+        val file = createTempFile().toFile()
         file.deleteOnExit()
         try {
             val args = buildSshCommand(remote, parameters, file, true, *command)
@@ -153,7 +164,11 @@ class SshRemoteServer : RsyncRemote() {
     /**
      * To get a commit, we look up the metadata.json file in the directory named by the given commit ID.
      */
-    override fun getCommit(remote: Map<String, Any>, parameters: Map<String, Any>, commitId: String): Map<String, Any>? {
+    override fun getCommit(
+        remote: Map<String, Any>,
+        parameters: Map<String, Any>,
+        commitId: String,
+    ): Map<String, Any>? {
         try {
             val json = runSsh(remote, parameters, "cat", "${remote["path"]}/$commitId/metadata.json")
             return gson.fromJson(json, object : TypeToken<Map<String, Any>>() {}.type)
@@ -170,7 +185,11 @@ class SshRemoteServer : RsyncRemote() {
      * getCommit() for each one to read the contents of the files. There are certainly more efficient methods, but
      * this is straightforward and sufficient for this simplistic remote provider.
      */
-    override fun listCommits(remote: Map<String, Any>, parameters: Map<String, Any>, tags: List<Pair<String, String?>>): List<Pair<String, Map<String, Any>>> {
+    override fun listCommits(
+        remote: Map<String, Any>,
+        parameters: Map<String, Any>,
+        tags: List<Pair<String, String?>>,
+    ): List<Pair<String, Map<String, Any>>> {
         val output = runSsh(remote, parameters, "ls", "-1", remote["path"] as String)
         val commits = mutableListOf<Pair<String, Map<String, Any>>>()
         for (line in output.lines()) {
@@ -190,8 +209,13 @@ class SshRemoteServer : RsyncRemote() {
      * Write to a file over SSH. While there are certainly ways to do this natively in java, we keep it simple
      * and just use command line tools as we are elsewhere.
      */
-    fun writeFileSsh(remote: Map<String, Any>, params: Map<String, Any>, path: String, content: String) {
-        val file = createTempFile()
+    fun writeFileSsh(
+        remote: Map<String, Any>,
+        params: Map<String, Any>,
+        path: String,
+        content: String,
+    ) {
+        val file = createTempFile().toFile()
         file.deleteOnExit()
         try {
             val args = buildSshCommand(remote, params, file, true, "sh", "-c", "cat > $path")
@@ -211,7 +235,11 @@ class SshRemoteServer : RsyncRemote() {
         }
     }
 
-    override fun syncDataEnd(operation: RemoteOperation, operationData: Any?, isSuccessful: Boolean) {
+    override fun syncDataEnd(
+        operation: RemoteOperation,
+        operationData: Any?,
+        isSuccessful: Boolean,
+    ) {
         // Nothing to do
     }
 
@@ -219,25 +247,50 @@ class SshRemoteServer : RsyncRemote() {
         // Nothing to do
     }
 
-    override fun getRemotePath(operation: RemoteOperation, operationData: Any?, volume: String): String {
+    override fun getRemotePath(
+        operation: RemoteOperation,
+        operationData: Any?,
+        volume: String,
+    ): String {
         val remoteDir = "${operation.remote["path"]}/${operation.commitId}/data/$volume"
         return "${operation.remote["username"]}@${operation.remote["address"]}:$remoteDir/"
     }
 
-    override fun getRsync(operation: RemoteOperation, operationData: Any?, src: String, dst: String, executor: CommandExecutor): RsyncExecutor {
+    override fun getRsync(
+        operation: RemoteOperation,
+        operationData: Any?,
+        src: String,
+        dst: String,
+        executor: CommandExecutor,
+    ): RsyncExecutor {
         if (operation.type == RemoteOperationType.PUSH) {
             val remoteDir = dst.substringAfter(":")
             runSsh(operation.remote, operation.parameters, "mkdir", "-p", remoteDir)
         }
 
         val (password, key) = getSshAuth(operation.remote, operation.parameters)
-        return RsyncExecutor(operation.updateProgress, operation.remote["port"] as Int?, password,
-                key, "$src/", dst, executor)
+        return RsyncExecutor(
+            operation.updateProgress,
+            operation.remote["port"] as Int?,
+            password,
+            key,
+            "$src/",
+            dst,
+            executor,
+        )
     }
 
-    override fun pushMetadata(operation: RemoteOperation, commit: Map<String, Any>, isUpdate: Boolean) {
+    override fun pushMetadata(
+        operation: RemoteOperation,
+        commit: Map<String, Any>,
+        isUpdate: Boolean,
+    ) {
         val json = gson.toJson(commit)
-        writeFileSsh(operation.remote, operation.parameters,
-                "${operation.remote["path"]}/${operation.commitId}/metadata.json", json)
+        writeFileSsh(
+            operation.remote,
+            operation.parameters,
+            "${operation.remote["path"]}/${operation.commitId}/metadata.json",
+            json,
+        )
     }
 }

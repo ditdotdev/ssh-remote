@@ -47,19 +47,23 @@ class SshRemoteServerTest : StringSpec() {
         return MockKAnnotations.init(this)
     }
 
-    override fun afterTest(testCase: TestCase, result: TestResult) {
+    override fun afterTest(
+        testCase: TestCase,
+        result: TestResult,
+    ) {
         clearAllMocks()
     }
 
-    val operation = RemoteOperation(
+    val operation =
+        RemoteOperation(
             updateProgress = { _: RemoteProgress, _: String?, _: Int? -> Unit },
             remote = mapOf("username" to "user", "address" to "host", "path" to "/path"),
             parameters = mapOf("password" to "password"),
             operationId = "operation",
             commitId = "commit",
             commit = null,
-            type = RemoteOperationType.PUSH
-    )
+            type = RemoteOperationType.PUSH,
+        )
 
     private fun mockFile(): File {
         mockkStatic("kotlin.io.FilesKt__FileReadWriteKt")
@@ -93,8 +97,17 @@ class SshRemoteServerTest : StringSpec() {
         }
 
         "validate remote succeeds with all optional fields" {
-            val result = server.validateRemote(mapOf("username" to "user", "path" to "/path", "address" to "host",
-                    "keyFile" to "/keyfile", "password" to "pass", "port" to 8022))
+            val result =
+                server.validateRemote(
+                    mapOf(
+                        "username" to "user",
+                        "path" to "/path",
+                        "address" to "host",
+                        "keyFile" to "/keyfile",
+                        "password" to "pass",
+                        "port" to 8022,
+                    ),
+                )
             result["username"] shouldBe "user"
             result["path"] shouldBe "/path"
             result["address"] shouldBe "host"
@@ -104,22 +117,41 @@ class SshRemoteServerTest : StringSpec() {
         }
 
         "validate remote converts port" {
-            val result = server.validateRemote(mapOf("username" to "user", "path" to "/path", "address" to "host",
-                    "port" to 8022.0))
+            val result =
+                server.validateRemote(
+                    mapOf(
+                        "username" to "user",
+                        "path" to "/path",
+                        "address" to "host",
+                        "port" to 8022.0,
+                    ),
+                )
             result["port"] shouldBe 8022
         }
 
         "validate remote fails with bad port" {
             shouldThrow<IllegalArgumentException> {
-                server.validateRemote(mapOf("username" to "user", "path" to "/path", "address" to "host",
-                        "port" to "p"))
+                server.validateRemote(
+                    mapOf(
+                        "username" to "user",
+                        "path" to "/path",
+                        "address" to "host",
+                        "port" to "p",
+                    ),
+                )
             }
         }
 
         "validate remote fails with invalid property" {
             shouldThrow<IllegalArgumentException> {
-                server.validateRemote(mapOf("username" to "user", "path" to "/path", "address" to "host",
-                        "portz" to "p"))
+                server.validateRemote(
+                    mapOf(
+                        "username" to "user",
+                        "path" to "/path",
+                        "address" to "host",
+                        "portz" to "p",
+                    ),
+                )
             }
         }
 
@@ -168,8 +200,11 @@ class SshRemoteServerTest : StringSpec() {
         "build SSH command uses sshpass for password authentication" {
             val file = mockFile()
             val command = server.buildSshCommand(emptyMap(), mapOf("password" to "password"), file, false)
-            command shouldBe arrayOf("sshpass", "-f", "/path", "ssh", "-o", "StrictHostKeyChecking=no",
-                    "-o", "UserKnownHostsFile=/dev/null")
+            command shouldBe
+                arrayOf(
+                    "sshpass", "-f", "/path", "ssh", "-o", "StrictHostKeyChecking=no",
+                    "-o", "UserKnownHostsFile=/dev/null",
+                )
             verify {
                 file.writeText("password")
             }
@@ -178,8 +213,11 @@ class SshRemoteServerTest : StringSpec() {
         "build SSH command uses key file for key authentication" {
             val file = mockFile()
             val command = server.buildSshCommand(emptyMap(), mapOf("key" to "key"), file, false)
-            command shouldBe arrayOf("ssh", "-i", "/path", "-o", "StrictHostKeyChecking=no",
-                    "-o", "UserKnownHostsFile=/dev/null")
+            command shouldBe
+                arrayOf(
+                    "ssh", "-i", "/path", "-o", "StrictHostKeyChecking=no",
+                    "-o", "UserKnownHostsFile=/dev/null",
+                )
             verify {
                 file.writeText("key")
             }
@@ -187,18 +225,30 @@ class SshRemoteServerTest : StringSpec() {
 
         "build SSH command with port and address succeeds" {
             val file = mockFile()
-            val command = server.buildSshCommand(mapOf("port" to 1234, "username" to "user", "address" to "host"),
-                    mapOf("key" to "key"), file, true, "ls", "/var/tmp")
-            command shouldBe arrayOf("ssh", "-i", "/path", "-p", "1234", "-o", "StrictHostKeyChecking=no",
-                    "-o", "UserKnownHostsFile=/dev/null", "user@host", "ls", "/var/tmp")
+            val command =
+                server.buildSshCommand(
+                    mapOf("port" to 1234, "username" to "user", "address" to "host"),
+                    mapOf("key" to "key"),
+                    file,
+                    true,
+                    "ls",
+                    "/var/tmp",
+                )
+            command shouldBe
+                arrayOf(
+                    "ssh", "-i", "/path", "-p", "1234", "-o", "StrictHostKeyChecking=no",
+                    "-o", "UserKnownHostsFile=/dev/null", "user@host", "ls", "/var/tmp",
+                )
         }
 
         "run ssh command invokes executor correctly" {
             every { executor.exec(*anyVararg()) } returns ""
             server.runSsh(mapOf("username" to "user", "address" to "host"), mapOf("key" to "key"), "ls", "-l")
             verify {
-                executor.exec("ssh", "-i", any(), "-o", "StrictHostKeyChecking=no", "-o",
-                "UserKnownHostsFile=/dev/null", "user@host", "ls", "-l")
+                executor.exec(
+                    "ssh", "-i", any(), "-o", "StrictHostKeyChecking=no", "-o",
+                    "UserKnownHostsFile=/dev/null", "user@host", "ls", "-l",
+                )
             }
         }
 
@@ -232,47 +282,102 @@ class SshRemoteServerTest : StringSpec() {
 
         "list commits returns an empty list" {
             every { executor.exec(*anyVararg()) } returns ""
-            val result = server.listCommits(mapOf("username" to "user", "password" to "password", "address" to "host", "path" to "/var/tmp"), emptyMap(), emptyList())
+            val result =
+                server.listCommits(
+                    mapOf("username" to "user", "password" to "password", "address" to "host", "path" to "/var/tmp"),
+                    emptyMap(),
+                    emptyList(),
+                )
             result.size shouldBe 0
         }
 
         "list commits returns correct metadata" {
-            every { executor.exec("sshpass", "-f", any(), "ssh", "-o", "StrictHostKeyChecking=no",
-                    "-o", "UserKnownHostsFile=/dev/null", "root@localhost", "ls", "-1", "/var/tmp") } returns "a\nb\n"
-            every { executor.exec("sshpass", "-f", any(), "ssh", "-o", "StrictHostKeyChecking=no",
-                    "-o", "UserKnownHostsFile=/dev/null", "root@localhost", "cat", "/var/tmp/a/metadata.json") } returns
-                    "{\"timestamp\":\"2019-09-20T13:45:36Z\"}"
-            every { executor.exec("sshpass", "-f", any(), "ssh", "-o", "StrictHostKeyChecking=no",
-                    "-o", "UserKnownHostsFile=/dev/null", "root@localhost", "cat", "/var/tmp/b/metadata.json") } returns
-                    "{\"timestamp\":\"2019-09-20T13:45:37Z\"}"
-            val result = server.listCommits(mapOf("username" to "root", "password" to "password", "address" to "localhost", "path" to "/var/tmp"), emptyMap(), emptyList())
+            every {
+                executor.exec(
+                    "sshpass", "-f", any(), "ssh", "-o", "StrictHostKeyChecking=no",
+                    "-o", "UserKnownHostsFile=/dev/null", "root@localhost", "ls", "-1", "/var/tmp",
+                )
+            } returns "a\nb\n"
+            every {
+                executor.exec(
+                    "sshpass", "-f", any(), "ssh", "-o", "StrictHostKeyChecking=no",
+                    "-o", "UserKnownHostsFile=/dev/null", "root@localhost", "cat", "/var/tmp/a/metadata.json",
+                )
+            } returns
+                "{\"timestamp\":\"2019-09-20T13:45:36Z\"}"
+            every {
+                executor.exec(
+                    "sshpass", "-f", any(), "ssh", "-o", "StrictHostKeyChecking=no",
+                    "-o", "UserKnownHostsFile=/dev/null", "root@localhost", "cat", "/var/tmp/b/metadata.json",
+                )
+            } returns
+                "{\"timestamp\":\"2019-09-20T13:45:37Z\"}"
+            val result =
+                server.listCommits(
+                    mapOf("username" to "root", "password" to "password", "address" to "localhost", "path" to "/var/tmp"),
+                    emptyMap(),
+                    emptyList(),
+                )
             result.size shouldBe 2
             result[0].first shouldBe "b"
             result[1].first shouldBe "a"
         }
 
         "list commits filters result" {
-            every { executor.exec("sshpass", "-f", any(), "ssh", "-o", "StrictHostKeyChecking=no",
-                    "-o", "UserKnownHostsFile=/dev/null", "root@localhost", "ls", "-1", "/var/tmp") } returns "a\nb\n"
-            every { executor.exec("sshpass", "-f", any(), "ssh", "-o", "StrictHostKeyChecking=no",
-                    "-o", "UserKnownHostsFile=/dev/null", "root@localhost", "cat", "/var/tmp/a/metadata.json") } returns
-                    "{\"tags\":{\"c\":\"d\"}}"
-            every { executor.exec("sshpass", "-f", any(), "ssh", "-o", "StrictHostKeyChecking=no",
-                    "-o", "UserKnownHostsFile=/dev/null", "root@localhost", "cat", "/var/tmp/b/metadata.json") } returns
-                    "{}"
-            val result = server.listCommits(mapOf("username" to "root", "password" to "password", "address" to "localhost", "path" to "/var/tmp"), emptyMap(), listOf("c" to null))
+            every {
+                executor.exec(
+                    "sshpass", "-f", any(), "ssh", "-o", "StrictHostKeyChecking=no",
+                    "-o", "UserKnownHostsFile=/dev/null", "root@localhost", "ls", "-1", "/var/tmp",
+                )
+            } returns "a\nb\n"
+            every {
+                executor.exec(
+                    "sshpass", "-f", any(), "ssh", "-o", "StrictHostKeyChecking=no",
+                    "-o", "UserKnownHostsFile=/dev/null", "root@localhost", "cat", "/var/tmp/a/metadata.json",
+                )
+            } returns
+                "{\"tags\":{\"c\":\"d\"}}"
+            every {
+                executor.exec(
+                    "sshpass", "-f", any(), "ssh", "-o", "StrictHostKeyChecking=no",
+                    "-o", "UserKnownHostsFile=/dev/null", "root@localhost", "cat", "/var/tmp/b/metadata.json",
+                )
+            } returns
+                "{}"
+            val result =
+                server.listCommits(
+                    mapOf("username" to "root", "password" to "password", "address" to "localhost", "path" to "/var/tmp"),
+                    emptyMap(),
+                    listOf("c" to null),
+                )
             result.size shouldBe 1
             result[0].first shouldBe "a"
         }
 
         "list commits ignores missing file" {
-            every { executor.exec("sshpass", "-f", any(), "ssh", "-o", "StrictHostKeyChecking=no",
-                    "-o", "UserKnownHostsFile=/dev/null", "root@localhost", "ls", "-1", "/var/tmp") } returns "a\n"
-            every { executor.exec("sshpass", "-f", any(), "ssh", "-o", "StrictHostKeyChecking=no",
-                    "-o", "UserKnownHostsFile=/dev/null", "root@localhost", "cat", "/var/tmp/a/metadata.json") } throws CommandException("", 1,
-                    "No such file or directory")
+            every {
+                executor.exec(
+                    "sshpass", "-f", any(), "ssh", "-o", "StrictHostKeyChecking=no",
+                    "-o", "UserKnownHostsFile=/dev/null", "root@localhost", "ls", "-1", "/var/tmp",
+                )
+            } returns "a\n"
+            every {
+                executor.exec(
+                    "sshpass", "-f", any(), "ssh", "-o", "StrictHostKeyChecking=no",
+                    "-o", "UserKnownHostsFile=/dev/null", "root@localhost", "cat", "/var/tmp/a/metadata.json",
+                )
+            } throws
+                CommandException(
+                    "", 1,
+                    "No such file or directory",
+                )
 
-            val result = server.listCommits(mapOf("username" to "root", "password" to "password", "address" to "localhost", "path" to "/var/tmp"), emptyMap(), emptyList())
+            val result =
+                server.listCommits(
+                    mapOf("username" to "root", "password" to "password", "address" to "localhost", "path" to "/var/tmp"),
+                    emptyMap(),
+                    emptyList(),
+                )
             result.size shouldBe 0
         }
 

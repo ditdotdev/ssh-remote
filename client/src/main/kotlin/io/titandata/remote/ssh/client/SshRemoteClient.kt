@@ -34,7 +34,10 @@ class SshRemoteClient : RemoteClient {
         return "ssh"
     }
 
-    override fun parseUri(uri: URI, additionalProperties: Map<String, String>): Map<String, Any> {
+    override fun parseUri(
+        uri: URI,
+        additionalProperties: Map<String, String>,
+    ): Map<String, Any> {
         val (username, password, host, port, rawPath) = util.getConnectionInfo(uri)
 
         if (rawPath == null) {
@@ -49,10 +52,11 @@ class SshRemoteClient : RemoteClient {
             throw IllegalArgumentException("Missing username in SSH remote")
         }
 
-        val path = when {
-            rawPath.startsWith("/~/") -> rawPath.substring(3)
-            else -> rawPath
-        }
+        val path =
+            when {
+                rawPath.startsWith("/~/") -> rawPath.substring(3)
+                else -> rawPath
+            }
 
         val keyFile = additionalProperties["keyFile"]
 
@@ -86,11 +90,12 @@ class SshRemoteClient : RemoteClient {
         }
         uri += "@${properties["address"]}"
         if (properties["port"] != null) {
-            val port = if (properties["port"] is Double) {
-                (properties["port"] as Double).toInt()
-            } else {
-                properties["port"]
-            }
+            val port =
+                if (properties["port"] is Double) {
+                    (properties["port"] as Double).toInt()
+                } else {
+                    properties["port"]
+                }
             uri += ":$port"
         }
         if (!(properties["path"] as String).startsWith("/")) {
@@ -114,7 +119,8 @@ class SshRemoteClient : RemoteClient {
 
         var password: String? = null
         if (remoteProperties["password"] == null && remoteProperties["keyFile"] == null) {
-            val input = console?.readPassword("password: ")
+            val input =
+                console?.readPassword("password: ")
                     ?: throw IllegalArgumentException("password required but no console available")
             password = String(input)
         }
