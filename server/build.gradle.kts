@@ -15,7 +15,7 @@ repositories {
     maven("https://dl.bintray.com/kotlin/kotlinx")
     maven {
         name = "titan"
-        url = uri("https://maven.titan-data.io")
+        url = uri("https://datadatdat-maven.s3.amazonaws.com")
     }
 }
 
