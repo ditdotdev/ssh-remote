@@ -157,9 +157,7 @@ class SshRemoteServer : RsyncRemote() {
         }
     }
 
-    override fun getProvider(): String {
-        return "ssh"
-    }
+    override fun getProvider(): String = "ssh"
 
     /**
      * To get a commit, we look up the metadata.json file in the directory named by the given commit ID.

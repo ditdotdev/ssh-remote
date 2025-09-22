@@ -21,8 +21,8 @@ repositories {
 
 dependencies {
     implementation(kotlin("stdlib"))
-    implementation("io.titandata:remote-sdk:0.2.0")
-    implementation("io.titandata:command-executor:0.0.10")
+    implementation("io.titandata:remote-sdk:0.2.2")
+    implementation("io.titandata:command-executor:0.1.1")
     implementation("com.google.code.gson:gson:2.13.2")
     testImplementation("io.kotlintest:kotlintest-runner-junit5:3.4.2")
     testImplementation("io.mockk:mockk:1.14.5")

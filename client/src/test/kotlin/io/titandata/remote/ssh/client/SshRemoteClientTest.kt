@@ -27,9 +27,7 @@ class SshRemoteClientTest : StringSpec() {
     @OverrideMockKs
     var client = SshRemoteClient()
 
-    override fun beforeTest(testCase: TestCase) {
-        return MockKAnnotations.init(this)
-    }
+    override fun beforeTest(testCase: TestCase) = MockKAnnotations.init(this)
 
     override fun afterTest(
         testCase: TestCase,

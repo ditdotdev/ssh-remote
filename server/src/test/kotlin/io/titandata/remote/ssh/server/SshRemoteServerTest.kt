@@ -43,9 +43,7 @@ class SshRemoteServerTest : StringSpec() {
     @OverrideMockKs
     var server = SshRemoteServer()
 
-    override fun beforeTest(testCase: TestCase) {
-        return MockKAnnotations.init(this)
-    }
+    override fun beforeTest(testCase: TestCase) = MockKAnnotations.init(this)
 
     override fun afterTest(
         testCase: TestCase,
@@ -202,8 +200,14 @@ class SshRemoteServerTest : StringSpec() {
             val command = server.buildSshCommand(emptyMap(), mapOf("password" to "password"), file, false)
             command shouldBe
                 arrayOf(
-                    "sshpass", "-f", "/path", "ssh", "-o", "StrictHostKeyChecking=no",
-                    "-o", "UserKnownHostsFile=/dev/null",
+                    "sshpass",
+                    "-f",
+                    "/path",
+                    "ssh",
+                    "-o",
+                    "StrictHostKeyChecking=no",
+                    "-o",
+                    "UserKnownHostsFile=/dev/null",
                 )
             verify {
                 file.writeText("password")
@@ -215,8 +219,13 @@ class SshRemoteServerTest : StringSpec() {
             val command = server.buildSshCommand(emptyMap(), mapOf("key" to "key"), file, false)
             command shouldBe
                 arrayOf(
-                    "ssh", "-i", "/path", "-o", "StrictHostKeyChecking=no",
-                    "-o", "UserKnownHostsFile=/dev/null",
+                    "ssh",
+                    "-i",
+                    "/path",
+                    "-o",
+                    "StrictHostKeyChecking=no",
+                    "-o",
+                    "UserKnownHostsFile=/dev/null",
                 )
             verify {
                 file.writeText("key")
@@ -236,8 +245,18 @@ class SshRemoteServerTest : StringSpec() {
                 )
             command shouldBe
                 arrayOf(
-                    "ssh", "-i", "/path", "-p", "1234", "-o", "StrictHostKeyChecking=no",
-                    "-o", "UserKnownHostsFile=/dev/null", "user@host", "ls", "/var/tmp",
+                    "ssh",
+                    "-i",
+                    "/path",
+                    "-p",
+                    "1234",
+                    "-o",
+                    "StrictHostKeyChecking=no",
+                    "-o",
+                    "UserKnownHostsFile=/dev/null",
+                    "user@host",
+                    "ls",
+                    "/var/tmp",
                 )
         }
 
@@ -246,8 +265,16 @@ class SshRemoteServerTest : StringSpec() {
             server.runSsh(mapOf("username" to "user", "address" to "host"), mapOf("key" to "key"), "ls", "-l")
             verify {
                 executor.exec(
-                    "ssh", "-i", any(), "-o", "StrictHostKeyChecking=no", "-o",
-                    "UserKnownHostsFile=/dev/null", "user@host", "ls", "-l",
+                    "ssh",
+                    "-i",
+                    any(),
+                    "-o",
+                    "StrictHostKeyChecking=no",
+                    "-o",
+                    "UserKnownHostsFile=/dev/null",
+                    "user@host",
+                    "ls",
+                    "-l",
                 )
             }
         }
@@ -294,21 +321,49 @@ class SshRemoteServerTest : StringSpec() {
         "list commits returns correct metadata" {
             every {
                 executor.exec(
-                    "sshpass", "-f", any(), "ssh", "-o", "StrictHostKeyChecking=no",
-                    "-o", "UserKnownHostsFile=/dev/null", "root@localhost", "ls", "-1", "/var/tmp",
+                    "sshpass",
+                    "-f",
+                    any(),
+                    "ssh",
+                    "-o",
+                    "StrictHostKeyChecking=no",
+                    "-o",
+                    "UserKnownHostsFile=/dev/null",
+                    "root@localhost",
+                    "ls",
+                    "-1",
+                    "/var/tmp",
                 )
             } returns "a\nb\n"
             every {
                 executor.exec(
-                    "sshpass", "-f", any(), "ssh", "-o", "StrictHostKeyChecking=no",
-                    "-o", "UserKnownHostsFile=/dev/null", "root@localhost", "cat", "/var/tmp/a/metadata.json",
+                    "sshpass",
+                    "-f",
+                    any(),
+                    "ssh",
+                    "-o",
+                    "StrictHostKeyChecking=no",
+                    "-o",
+                    "UserKnownHostsFile=/dev/null",
+                    "root@localhost",
+                    "cat",
+                    "/var/tmp/a/metadata.json",
                 )
             } returns
                 "{\"timestamp\":\"2019-09-20T13:45:36Z\"}"
             every {
                 executor.exec(
-                    "sshpass", "-f", any(), "ssh", "-o", "StrictHostKeyChecking=no",
-                    "-o", "UserKnownHostsFile=/dev/null", "root@localhost", "cat", "/var/tmp/b/metadata.json",
+                    "sshpass",
+                    "-f",
+                    any(),
+                    "ssh",
+                    "-o",
+                    "StrictHostKeyChecking=no",
+                    "-o",
+                    "UserKnownHostsFile=/dev/null",
+                    "root@localhost",
+                    "cat",
+                    "/var/tmp/b/metadata.json",
                 )
             } returns
                 "{\"timestamp\":\"2019-09-20T13:45:37Z\"}"
@@ -326,21 +381,49 @@ class SshRemoteServerTest : StringSpec() {
         "list commits filters result" {
             every {
                 executor.exec(
-                    "sshpass", "-f", any(), "ssh", "-o", "StrictHostKeyChecking=no",
-                    "-o", "UserKnownHostsFile=/dev/null", "root@localhost", "ls", "-1", "/var/tmp",
+                    "sshpass",
+                    "-f",
+                    any(),
+                    "ssh",
+                    "-o",
+                    "StrictHostKeyChecking=no",
+                    "-o",
+                    "UserKnownHostsFile=/dev/null",
+                    "root@localhost",
+                    "ls",
+                    "-1",
+                    "/var/tmp",
                 )
             } returns "a\nb\n"
             every {
                 executor.exec(
-                    "sshpass", "-f", any(), "ssh", "-o", "StrictHostKeyChecking=no",
-                    "-o", "UserKnownHostsFile=/dev/null", "root@localhost", "cat", "/var/tmp/a/metadata.json",
+                    "sshpass",
+                    "-f",
+                    any(),
+                    "ssh",
+                    "-o",
+                    "StrictHostKeyChecking=no",
+                    "-o",
+                    "UserKnownHostsFile=/dev/null",
+                    "root@localhost",
+                    "cat",
+                    "/var/tmp/a/metadata.json",
                 )
             } returns
                 "{\"tags\":{\"c\":\"d\"}}"
             every {
                 executor.exec(
-                    "sshpass", "-f", any(), "ssh", "-o", "StrictHostKeyChecking=no",
-                    "-o", "UserKnownHostsFile=/dev/null", "root@localhost", "cat", "/var/tmp/b/metadata.json",
+                    "sshpass",
+                    "-f",
+                    any(),
+                    "ssh",
+                    "-o",
+                    "StrictHostKeyChecking=no",
+                    "-o",
+                    "UserKnownHostsFile=/dev/null",
+                    "root@localhost",
+                    "cat",
+                    "/var/tmp/b/metadata.json",
                 )
             } returns
                 "{}"
@@ -357,18 +440,38 @@ class SshRemoteServerTest : StringSpec() {
         "list commits ignores missing file" {
             every {
                 executor.exec(
-                    "sshpass", "-f", any(), "ssh", "-o", "StrictHostKeyChecking=no",
-                    "-o", "UserKnownHostsFile=/dev/null", "root@localhost", "ls", "-1", "/var/tmp",
+                    "sshpass",
+                    "-f",
+                    any(),
+                    "ssh",
+                    "-o",
+                    "StrictHostKeyChecking=no",
+                    "-o",
+                    "UserKnownHostsFile=/dev/null",
+                    "root@localhost",
+                    "ls",
+                    "-1",
+                    "/var/tmp",
                 )
             } returns "a\n"
             every {
                 executor.exec(
-                    "sshpass", "-f", any(), "ssh", "-o", "StrictHostKeyChecking=no",
-                    "-o", "UserKnownHostsFile=/dev/null", "root@localhost", "cat", "/var/tmp/a/metadata.json",
+                    "sshpass",
+                    "-f",
+                    any(),
+                    "ssh",
+                    "-o",
+                    "StrictHostKeyChecking=no",
+                    "-o",
+                    "UserKnownHostsFile=/dev/null",
+                    "root@localhost",
+                    "cat",
+                    "/var/tmp/a/metadata.json",
                 )
             } throws
                 CommandException(
-                    "", 1,
+                    "",
+                    1,
                     "No such file or directory",
                 )
 

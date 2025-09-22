@@ -30,9 +30,7 @@ class SshRemoteClient : RemoteClient {
     private val console = System.console()
     private val util = RemoteClientUtil()
 
-    override fun getProvider(): String {
-        return "ssh"
-    }
+    override fun getProvider(): String = "ssh"
 
     override fun parseUri(
         uri: URI,
