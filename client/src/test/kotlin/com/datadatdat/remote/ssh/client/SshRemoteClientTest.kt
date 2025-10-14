@@ -1,8 +1,8 @@
 /*
- * Copyright The Titan Project Contributors.
+ * Copyright Datadatdat.
  */
 
-package io.titandata.remote.ssh.client
+package com.datadatdat.remote.ssh.client
 
 import io.kotlintest.TestCase
 import io.kotlintest.TestResult

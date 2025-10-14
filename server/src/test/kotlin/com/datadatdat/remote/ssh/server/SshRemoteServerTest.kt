@@ -1,8 +1,8 @@
 /*
- * Copyright The Titan Project Contributors.
+ * Copyright Datadatdat.
  */
 
-package io.titandata.remote.ssh.server
+package com.datadatdat.remote.ssh.server
 
 import io.kotlintest.TestCase
 import io.kotlintest.TestCaseOrder
@@ -24,11 +24,11 @@ import io.mockk.mockkStatic
 import io.mockk.slot
 import io.mockk.spyk
 import io.mockk.verify
-import io.titandata.remote.RemoteOperation
-import io.titandata.remote.RemoteOperationType
-import io.titandata.remote.RemoteProgress
-import io.titandata.shell.CommandException
-import io.titandata.shell.CommandExecutor
+import com.datadatdat.remote.RemoteOperation
+import com.datadatdat.remote.RemoteOperationType
+import com.datadatdat.remote.RemoteProgress
+import com.datadatdat.shell.CommandException
+import com.datadatdat.shell.CommandExecutor
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException

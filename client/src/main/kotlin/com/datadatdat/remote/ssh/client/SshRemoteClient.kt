@@ -1,11 +1,11 @@
 /*
- * Copyright The Titan Project Contributors.
+ * Copyright Datadatdat.
  */
 
-package io.titandata.remote.ssh.client
+package com.datadatdat.remote.ssh.client
 
-import io.titandata.remote.RemoteClient
-import io.titandata.remote.RemoteClientUtil
+import com.datadatdat.remote.RemoteClient
+import com.datadatdat.remote.RemoteClientUtil
 import java.io.File
 import java.net.URI
 
