@@ -1,18 +1,18 @@
 /*
- * Copyright The Titan Project Contributors.
+ * Copyright Datadatdat.
  */
 
-package io.titandata.remote.ssh.server
+package com.datadatdat.remote.ssh.server
 
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
-import io.titandata.remote.RemoteOperation
-import io.titandata.remote.RemoteOperationType
-import io.titandata.remote.RemoteServerUtil
-import io.titandata.remote.rsync.RsyncExecutor
-import io.titandata.remote.rsync.RsyncRemote
-import io.titandata.shell.CommandException
-import io.titandata.shell.CommandExecutor
+import com.datadatdat.remote.RemoteOperation
+import com.datadatdat.remote.RemoteOperationType
+import com.datadatdat.remote.RemoteServerUtil
+import com.datadatdat.remote.rsync.RsyncExecutor
+import com.datadatdat.remote.rsync.RsyncRemote
+import com.datadatdat.shell.CommandException
+import com.datadatdat.shell.CommandExecutor
 import java.io.File
 import java.io.IOException
 import java.nio.file.Files
