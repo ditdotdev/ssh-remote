@@ -4,8 +4,6 @@
 
 package com.datadatdat.remote.ssh.server
 
-import com.google.gson.GsonBuilder
-import com.google.gson.reflect.TypeToken
 import com.datadatdat.remote.RemoteOperation
 import com.datadatdat.remote.RemoteOperationType
 import com.datadatdat.remote.RemoteServerUtil
@@ -13,6 +11,8 @@ import com.datadatdat.remote.rsync.RsyncExecutor
 import com.datadatdat.remote.rsync.RsyncRemote
 import com.datadatdat.shell.CommandException
 import com.datadatdat.shell.CommandExecutor
+import com.google.gson.GsonBuilder
+import com.google.gson.reflect.TypeToken
 import java.io.File
 import java.io.IOException
 import java.nio.file.Files
