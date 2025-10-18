@@ -4,6 +4,11 @@
 
 package com.datadatdat.remote.ssh.server
 
+import com.datadatdat.remote.RemoteOperation
+import com.datadatdat.remote.RemoteOperationType
+import com.datadatdat.remote.RemoteProgress
+import com.datadatdat.shell.CommandException
+import com.datadatdat.shell.CommandExecutor
 import io.kotlintest.TestCase
 import io.kotlintest.TestCaseOrder
 import io.kotlintest.TestResult
@@ -24,11 +29,6 @@ import io.mockk.mockkStatic
 import io.mockk.slot
 import io.mockk.spyk
 import io.mockk.verify
-import com.datadatdat.remote.RemoteOperation
-import com.datadatdat.remote.RemoteOperationType
-import com.datadatdat.remote.RemoteProgress
-import com.datadatdat.shell.CommandException
-import com.datadatdat.shell.CommandExecutor
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
