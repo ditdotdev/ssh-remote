@@ -67,13 +67,14 @@ class SshRemoteServer : RsyncRemote() {
     /**
      * Validate parameters, which can optionall contain either (password, key)
      */
-    override fun validateParameters(parameters: Map<String, Any>): Map<String, Any> {
-        for (prop in parameters.keys) {
+    override fun validateParameters(parameters: Map<String, Any>?): Map<String, Any> {
+        val params = parameters ?: emptyMap()
+        for (prop in params.keys) {
             if (prop != "password" && prop != "key") {
                 throw IllegalArgumentException("invalid property '$prop'")
             }
         }
-        return parameters
+        return params
     }
 
     /**
