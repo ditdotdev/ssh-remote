@@ -24,7 +24,7 @@ dependencies {
 	implementation("com.datadatdat:command-executor:1.5.0")
 	implementation("com.google.code.gson:gson:2.13.2")
 	testImplementation("io.kotlintest:kotlintest-runner-junit5:3.4.2")
-	testImplementation("io.mockk:mockk:1.14.5")
+	testImplementation("io.mockk:mockk:1.14.7")
 }
 
 // Jar configuration
