@@ -24,7 +24,7 @@ dependencies {
 	implementation("com.datadatdat:command-executor:1.5.0")
 	implementation("com.google.code.gson:gson:2.13.2")
 	testImplementation("io.kotlintest:kotlintest-runner-junit5:3.4.2")
-	testImplementation("io.mockk:mockk:1.14.7")
+	testImplementation("io.mockk:mockk:1.13.14")
 }
 
 // Jar configuration
@@ -74,5 +74,14 @@ publishing {
 
 tasks.test {
     useJUnitPlatform()
+    jvmArgs(
+        "--add-opens", "java.base/java.lang=ALL-UNNAMED",
+        "--add-opens", "java.base/java.util=ALL-UNNAMED",
+        "--add-opens", "java.base/java.io=ALL-UNNAMED",
+        "--add-opens", "java.base/java.lang.reflect=ALL-UNNAMED",
+        "--add-opens", "java.base/java.nio.file=ALL-UNNAMED",
+        "--add-opens", "java.base/sun.nio.ch=ALL-UNNAMED",
+        "--add-opens", "java.base/java.net=ALL-UNNAMED"
+    )
 }
 
