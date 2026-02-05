@@ -20,11 +20,23 @@ repositories {
 
 dependencies {
 	implementation(kotlin("stdlib"))
+	implementation(kotlin("reflect"))
 	implementation("com.datadatdat:remote-sdk:1.5.0")
 	implementation("com.datadatdat:command-executor:1.5.0")
 	implementation("com.google.code.gson:gson:2.13.2")
-	testImplementation("io.kotlintest:kotlintest-runner-junit5:3.4.2")
-	testImplementation("io.mockk:mockk:1.13.14")
+	testImplementation("io.kotest:kotest-runner-junit5:6.1.2")
+	testImplementation("io.kotest:kotest-assertions-core:6.1.2")
+	testImplementation("io.mockk:mockk:1.14.9")
+	
+	// Force kotlin-reflect to match Kotlin version
+	constraints {
+		implementation("org.jetbrains.kotlin:kotlin-reflect:2.3.0") {
+			because("Match Kotlin compiler version to avoid reflection issues")
+		}
+		testImplementation("org.jetbrains.kotlin:kotlin-reflect:2.3.0") {
+			because("Match Kotlin compiler version to avoid reflection issues")
+		}
+	}
 }
 
 // Jar configuration
@@ -35,8 +47,8 @@ version = when(project.hasProperty("version")) {
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
 }
 
 val jar by tasks.getting(Jar::class) {
