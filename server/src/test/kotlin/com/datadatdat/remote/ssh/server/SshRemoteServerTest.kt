@@ -9,11 +9,11 @@ import com.datadatdat.remote.RemoteOperationType
 import com.datadatdat.remote.RemoteProgress
 import com.datadatdat.shell.CommandException
 import com.datadatdat.shell.CommandExecutor
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.core.test.TestCaseOrder
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
-import io.kotest.assertions.throwables.shouldThrow
 import io.mockk.Runs
 import io.mockk.clearAllMocks
 import io.mockk.every
@@ -30,32 +30,33 @@ import java.io.IOException
 import java.nio.file.Files
 import kotlin.IllegalArgumentException
 
-class SshRemoteServerTest : StringSpec({
-    lateinit var server: SshRemoteServer
-    lateinit var executor: CommandExecutor
-    
-    beforeTest {
-        server = SshRemoteServer()
-        executor = spyk(server.executor)
-        server.executor = executor
-    }
-    
-    afterTest {
-        unmockkAll()
-    }
-    
-    val operation =
-        RemoteOperation(
-            updateProgress = { _: RemoteProgress, _: String?, _: Int? -> Unit },
-            remote = mapOf("username" to "user", "address" to "host", "path" to "/path"),
-            parameters = mapOf("password" to "password"),
-            operationId = "operation",
-            commitId = "commit",
-            commit = null,
-            type = RemoteOperationType.PUSH,
-        )
-        
-    "get provider returns ssh" {
+class SshRemoteServerTest :
+    StringSpec({
+        lateinit var server: SshRemoteServer
+        lateinit var executor: CommandExecutor
+
+        beforeTest {
+            server = SshRemoteServer()
+            executor = spyk(server.executor)
+            server.executor = executor
+        }
+
+        afterTest {
+            unmockkAll()
+        }
+
+        val operation =
+            RemoteOperation(
+                updateProgress = { _: RemoteProgress, _: String?, _: Int? -> Unit },
+                remote = mapOf("username" to "user", "address" to "host", "path" to "/path"),
+                parameters = mapOf("password" to "password"),
+                operationId = "operation",
+                commitId = "commit",
+                commit = null,
+                type = RemoteOperationType.PUSH,
+            )
+
+        "get provider returns ssh" {
             server.getProvider() shouldBe "ssh"
         }
 
@@ -174,77 +175,86 @@ class SshRemoteServerTest : StringSpec({
         }
 
         "build SSH command uses sshpass for password authentication" {
-        val file = kotlin.io.path.createTempFile().toFile()
-        try {
-            val command = server.buildSshCommand(emptyMap(), mapOf("password" to "password"), file, false)
-            command shouldBe
-                listOf(
-                    "sshpass",
-                    "-f",
-                    file.path,
-                    "ssh",
-                    "-o",
-                    "StrictHostKeyChecking=no",
-                    "-o",
-                    "UserKnownHostsFile=/dev/null",
-                )
-            file.readText() shouldBe "password"
-        } finally {
-            file.delete()
+            val file =
+                kotlin.io.path
+                    .createTempFile()
+                    .toFile()
+            try {
+                val command = server.buildSshCommand(emptyMap(), mapOf("password" to "password"), file, false)
+                command shouldBe
+                    listOf(
+                        "sshpass",
+                        "-f",
+                        file.path,
+                        "ssh",
+                        "-o",
+                        "StrictHostKeyChecking=no",
+                        "-o",
+                        "UserKnownHostsFile=/dev/null",
+                    )
+                file.readText() shouldBe "password"
+            } finally {
+                file.delete()
+            }
         }
-    }
 
         "build SSH command uses key file for key authentication" {
-        val file = kotlin.io.path.createTempFile().toFile()
-        try {
-            val command = server.buildSshCommand(emptyMap(), mapOf("key" to "key"), file, false)
-            command shouldBe
-                listOf(
-                    "ssh",
-                    "-i",
-                    file.path,
-                    "-o",
-                    "StrictHostKeyChecking=no",
-                    "-o",
-                    "UserKnownHostsFile=/dev/null",
-                )
-            file.readText() shouldBe "key"
-        } finally {
-            file.delete()
+            val file =
+                kotlin.io.path
+                    .createTempFile()
+                    .toFile()
+            try {
+                val command = server.buildSshCommand(emptyMap(), mapOf("key" to "key"), file, false)
+                command shouldBe
+                    listOf(
+                        "ssh",
+                        "-i",
+                        file.path,
+                        "-o",
+                        "StrictHostKeyChecking=no",
+                        "-o",
+                        "UserKnownHostsFile=/dev/null",
+                    )
+                file.readText() shouldBe "key"
+            } finally {
+                file.delete()
+            }
         }
-    }
 
-    "build SSH command with port and address succeeds" {
-        val file = kotlin.io.path.createTempFile().toFile()
-        try {
-            val command =
-                server.buildSshCommand(
-                    mapOf("port" to 1234, "username" to "user", "address" to "host"),
-                    mapOf("key" to "key"),
-                    file,
-                    true,
-                    "ls",
-                    "/var/tmp",
-                )
-            command shouldBe
-                listOf(
-                    "ssh",
-                    "-i",
-                    file.path,
-                    "-p",
-                    "1234",
-                    "-o",
-                    "StrictHostKeyChecking=no",
-                    "-o",
-                    "UserKnownHostsFile=/dev/null",
-                    "user@host",
-                    "ls",
-                    "/var/tmp",
-                )
-        } finally {
-            file.delete()
+        "build SSH command with port and address succeeds" {
+            val file =
+                kotlin.io.path
+                    .createTempFile()
+                    .toFile()
+            try {
+                val command =
+                    server.buildSshCommand(
+                        mapOf("port" to 1234, "username" to "user", "address" to "host"),
+                        mapOf("key" to "key"),
+                        file,
+                        true,
+                        "ls",
+                        "/var/tmp",
+                    )
+                command shouldBe
+                    listOf(
+                        "ssh",
+                        "-i",
+                        file.path,
+                        "-p",
+                        "1234",
+                        "-o",
+                        "StrictHostKeyChecking=no",
+                        "-o",
+                        "UserKnownHostsFile=/dev/null",
+                        "user@host",
+                        "ls",
+                        "/var/tmp",
+                    )
+            } finally {
+                file.delete()
+            }
         }
-    }
 
         "run ssh command invokes executor correctly" {
             every { executor.exec(*anyVararg()) } returns ""
@@ -533,4 +543,4 @@ class SshRemoteServerTest : StringSpec({
         "sync data end does nothing" {
             server.syncDataEnd(operation, null, true)
         }
-})
+    })

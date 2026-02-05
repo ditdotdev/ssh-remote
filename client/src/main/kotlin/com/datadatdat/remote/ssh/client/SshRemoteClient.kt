@@ -27,7 +27,7 @@ import java.net.URI
  * and convert it to a relative path.
  */
 class SshRemoteClient(
-    private val console: java.io.Console? = System.console()
+    private val console: java.io.Console? = System.console(),
 ) : RemoteClient {
     private val util = RemoteClientUtil()
 

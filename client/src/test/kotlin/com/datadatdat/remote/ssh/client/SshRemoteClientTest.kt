@@ -4,9 +4,9 @@
 
 package com.datadatdat.remote.ssh.client
 
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
-import io.kotest.assertions.throwables.shouldThrow
 import io.mockk.every
 import io.mockk.mockk
 import java.io.Console
@@ -213,7 +213,7 @@ class SshRemoteClientTest : StringSpec() {
         "prompt for SSH password succeeds" {
             val mockConsole: Console = mockk()
             every { mockConsole.readPassword(any()) } returns "pass".toCharArray()
-            
+
             val client = SshRemoteClient(mockConsole)
             val params =
                 client.getParameters(
