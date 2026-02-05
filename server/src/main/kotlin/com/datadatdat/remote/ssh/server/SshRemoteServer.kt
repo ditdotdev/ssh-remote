@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit
 import kotlin.io.path.createTempFile
 
 class SshRemoteServer : RsyncRemote() {
-    internal val executor = CommandExecutor()
+    internal var executor = CommandExecutor()
     internal val gson = GsonBuilder().create()
     internal val util = RemoteServerUtil()
 

@@ -4,37 +4,17 @@
 
 package com.datadatdat.remote.ssh.client
 
-import io.kotlintest.TestCase
-import io.kotlintest.TestResult
-import io.kotlintest.shouldBe
-import io.kotlintest.shouldThrow
-import io.kotlintest.specs.StringSpec
-import io.mockk.MockKAnnotations
-import io.mockk.clearAllMocks
+import io.kotest.core.spec.style.StringSpec
+import io.kotest.matchers.shouldBe
+import io.kotest.assertions.throwables.shouldThrow
 import io.mockk.every
-import io.mockk.impl.annotations.InjectMockKs
-import io.mockk.impl.annotations.MockK
-import io.mockk.impl.annotations.OverrideMockKs
+import io.mockk.mockk
 import java.io.Console
 import java.net.URI
 import kotlin.io.path.createTempFile
 
 class SshRemoteClientTest : StringSpec() {
-    @MockK
-    lateinit var console: Console
-
-    @InjectMockKs
-    @OverrideMockKs
-    var client = SshRemoteClient()
-
-    override fun beforeTest(testCase: TestCase) = MockKAnnotations.init(this)
-
-    override fun afterTest(
-        testCase: TestCase,
-        result: TestResult,
-    ) {
-        clearAllMocks()
-    }
+    val client = SshRemoteClient()
 
     init {
         "get provider returns ssh" {
@@ -231,7 +211,10 @@ class SshRemoteClientTest : StringSpec() {
         }
 
         "prompt for SSH password succeeds" {
-            every { console.readPassword(any()) } returns "pass".toCharArray()
+            val mockConsole: Console = mockk()
+            every { mockConsole.readPassword(any()) } returns "pass".toCharArray()
+            
+            val client = SshRemoteClient(mockConsole)
             val params =
                 client.getParameters(
                     mapOf(
