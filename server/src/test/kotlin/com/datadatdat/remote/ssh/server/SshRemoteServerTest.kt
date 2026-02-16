@@ -536,6 +536,31 @@ class SshRemoteServerTest :
             }
         }
 
+        "get rsync does not create directory on pull" {
+            val pullOperation =
+                RemoteOperation(
+                    updateProgress = { _: RemoteProgress, _: String?, _: Int? -> Unit },
+                    remote = mapOf("username" to "user", "address" to "host", "path" to "/path"),
+                    parameters = mapOf("password" to "password"),
+                    operationId = "operation",
+                    commitId = "commit",
+                    commit = null,
+                    type = RemoteOperationType.PULL,
+                )
+            val spy = spyk(server)
+            every { spy.runSsh(any(), any(), *anyVararg()) } returns ""
+            every { spy.getSshAuth(any(), any()) } returns Pair("password", null)
+            spy.getRsync(pullOperation, null, "/src", "user@host:/path/commit/volume", executor)
+            verify(exactly = 0) {
+                spy.runSsh(any(), any(), "mkdir", "-p", any())
+            }
+        }
+
+        "validate params with null returns empty map" {
+            val params = server.validateParameters(null)
+            params.size shouldBe 0
+        }
+
         "sync data start does nothing" {
             server.syncDataStart(operation)
         }
