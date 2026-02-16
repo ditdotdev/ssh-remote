@@ -226,5 +226,18 @@ class SshRemoteClientTest : StringSpec() {
             params["password"] shouldBe "pass"
             params["key"] shouldBe null
         }
+
+        "get parameters with null console throws exception" {
+            val client = SshRemoteClient(null)
+            shouldThrow<IllegalArgumentException> {
+                client.getParameters(
+                    mapOf(
+                        "username" to "username",
+                        "address" to "host",
+                        "path" to "/path",
+                    ),
+                )
+            }
+        }
     }
 }
