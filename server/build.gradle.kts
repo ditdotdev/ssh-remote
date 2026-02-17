@@ -21,8 +21,8 @@ repositories {
 dependencies {
 	implementation(kotlin("stdlib"))
 	implementation(kotlin("reflect"))
-	implementation("com.datadatdat:remote-sdk:1.6.0")
-	implementation("com.datadatdat:command-executor:1.6.0")
+	implementation("com.datadatdat:remote-sdk:1.6.1")
+	implementation("com.datadatdat:command-executor:1.6.1")
 	implementation("com.google.code.gson:gson:2.13.2")
 	testImplementation("io.kotest:kotest-runner-junit5:6.1.3")
 	testImplementation("io.kotest:kotest-assertions-core:6.1.3")
