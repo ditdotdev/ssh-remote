@@ -30,10 +30,10 @@ dependencies {
 	
 	// Force kotlin-reflect to match Kotlin version
 	constraints {
-		implementation("org.jetbrains.kotlin:kotlin-reflect:2.3.10") {
+		implementation("org.jetbrains.kotlin:kotlin-reflect:2.3.20") {
 			because("Match Kotlin compiler version to avoid reflection issues")
 		}
-		testImplementation("org.jetbrains.kotlin:kotlin-reflect:2.3.10") {
+		testImplementation("org.jetbrains.kotlin:kotlin-reflect:2.3.20") {
 			because("Match Kotlin compiler version to avoid reflection issues")
 		}
 	}
