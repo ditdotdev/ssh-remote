@@ -24,8 +24,8 @@ dependencies {
 	implementation("com.datadatdat:remote-sdk:1.8.2")
 	implementation("com.datadatdat:command-executor:1.8.0")
 	implementation("com.google.code.gson:gson:2.13.2")
-	testImplementation("io.kotest:kotest-runner-junit5:6.1.10")
-	testImplementation("io.kotest:kotest-assertions-core:6.1.10")
+	testImplementation("io.kotest:kotest-runner-junit5:6.1.11")
+	testImplementation("io.kotest:kotest-assertions-core:6.1.11")
 	testImplementation("io.mockk:mockk:1.14.9")
 	
 	// Force kotlin-reflect to match Kotlin version
