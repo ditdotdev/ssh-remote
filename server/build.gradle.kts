@@ -22,7 +22,7 @@ dependencies {
 	implementation(kotlin("stdlib"))
 	implementation(kotlin("reflect"))
 	implementation("com.datadatdat:remote-sdk:1.8.6")
-	implementation("com.datadatdat:command-executor:1.8.6")
+	implementation("com.datadatdat:command-executor:1.8.7")
 	implementation("com.google.code.gson:gson:2.13.2")
 	testImplementation("io.kotest:kotest-runner-junit5:6.1.11")
 	testImplementation("io.kotest:kotest-assertions-core:6.1.11")
