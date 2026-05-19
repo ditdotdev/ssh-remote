@@ -25,6 +25,63 @@ class SshRemoteServer : RsyncRemote() {
     internal val gson = GsonBuilder().create()
     internal val util = RemoteServerUtil()
 
+    companion object {
+        /**
+         * Allowlist for commit identifiers that will be interpolated into a shell
+         * command on the remote side. Mirrors the regex used in `ssh-remote-go`
+         * (`validateCommitID`). Anything outside this set risks command injection
+         * through the unquoted `commitId` argument used in
+         * `cat "<path>/<id>/metadata.json"`.
+         */
+        internal val COMMIT_ID_PATTERN = Regex("^[A-Za-z0-9._-]+\$")
+
+        /**
+         * Allowlist for paths that will be interpolated into `sh -c "cat > $path"`
+         * inside [writeFileSsh]. Shell metacharacters that could break out of the
+         * single-quoted context (anything other than path-safe characters) are
+         * rejected up front so even an attacker who controls the path argument
+         * cannot inject commands. The set is intentionally narrow: this provider
+         * only writes `metadata.json` under `<remote.path>/<commitId>/`, both of
+         * which are validated.
+         */
+        internal val SAFE_PATH_PATTERN = Regex("^[A-Za-z0-9._/-]+\$")
+
+        /**
+         * Single-quote-escape a string for safe inclusion inside a POSIX shell
+         * single-quoted literal. Each embedded single quote is replaced with the
+         * canonical `'\''` sequence: close the quoted string, emit a literal
+         * quote, then reopen.
+         */
+        internal fun shellSingleQuote(s: String): String = s.replace("'", "'\\''")
+
+        /**
+         * Throw [IllegalArgumentException] if [commitId] is empty or contains any
+         * character outside [COMMIT_ID_PATTERN].
+         */
+        internal fun validateCommitId(commitId: String) {
+            if (commitId.isEmpty()) {
+                throw IllegalArgumentException("commitId is required")
+            }
+            if (!COMMIT_ID_PATTERN.matches(commitId)) {
+                throw IllegalArgumentException("invalid commitId '$commitId': must match ${COMMIT_ID_PATTERN.pattern}")
+            }
+        }
+
+        /**
+         * Throw [IllegalArgumentException] if [path] contains characters outside
+         * [SAFE_PATH_PATTERN]. Used to gate paths handed to `sh -c` in
+         * [writeFileSsh].
+         */
+        internal fun validateRemotePath(path: String) {
+            if (path.isEmpty()) {
+                throw IllegalArgumentException("path is required")
+            }
+            if (!SAFE_PATH_PATTERN.matches(path)) {
+                throw IllegalArgumentException("invalid remote path '$path': must match ${SAFE_PATH_PATTERN.pattern}")
+            }
+        }
+    }
+
     /**
      * Validate remote configuration. Required parameters include (username, address, path). Optional parameters include
      * (password, port, keyFile). For the port, we have to
@@ -32,27 +89,24 @@ class SshRemoteServer : RsyncRemote() {
     override fun validateRemote(remote: Map<String, Any>): Map<String, Any> {
         val validated = mutableMapOf<String, Any>()
         for (prop in listOf("username", "address", "path")) {
-            if (!remote.containsKey(prop)) {
-                throw IllegalArgumentException("missing required remote property '$prop")
-            }
-            validated[prop] = remote[prop]!!.toString()
+            val value =
+                remote[prop]
+                    ?: throw IllegalArgumentException("missing required remote property '$prop'")
+            validated[prop] = value.toString()
         }
 
         for (prop in listOf("password", "port", "keyFile")) {
-            if (remote.containsKey(prop)) {
-                if (prop == "port") {
-                    val port =
-                        if (remote[prop] is Double) {
-                            (remote[prop] as Double).toInt()
-                        } else if (remote[prop] is Int) {
-                            remote[prop] as Int
-                        } else {
-                            throw IllegalArgumentException("port must be a number or integer")
-                        }
-                    validated[prop] = port
-                } else {
-                    validated[prop] = remote[prop]!!.toString()
-                }
+            val value = remote[prop] ?: continue
+            if (prop == "port") {
+                val port =
+                    when (value) {
+                        is Double -> value.toInt()
+                        is Int -> value
+                        else -> throw IllegalArgumentException("port must be a number or integer")
+                    }
+                validated[prop] = port
+            } else {
+                validated[prop] = value.toString()
             }
         }
 
@@ -112,7 +166,12 @@ class SshRemoteServer : RsyncRemote() {
             file.writeText(password)
             args.addAll(arrayOf("sshpass", "-f", file.path, "ssh"))
         } else {
-            file.writeText(key!!)
+            // getSshAuth guarantees exactly one of password/key is non-null,
+            // so reaching this branch with key == null would indicate a contract
+            // violation. checkNotNull surfaces that as a clear error rather than
+            // the previous unchecked `!!` operator.
+            val authKey = checkNotNull(key) { "getSshAuth returned no password and no key" }
+            file.writeText(authKey)
             args.addAll(arrayOf("ssh", "-i", file.path))
         }
 
@@ -168,6 +227,9 @@ class SshRemoteServer : RsyncRemote() {
         parameters: Map<String, Any>,
         commitId: String,
     ): Map<String, Any>? {
+        // Allowlist validation MUST run before any shell interpolation. Mirrors
+        // ssh-remote-go's validateCommitID (PR #54).
+        validateCommitId(commitId)
         try {
             val json = runSsh(remote, parameters, "cat", "${remote["path"]}/$commitId/metadata.json")
             return gson.fromJson(json, object : TypeToken<Map<String, Any>>() {}.type)
@@ -193,11 +255,16 @@ class SshRemoteServer : RsyncRemote() {
         val commits = mutableListOf<Pair<String, Map<String, Any>>>()
         for (line in output.lines()) {
             val commitId = line.trim()
-            if (commitId != "") {
-                val commit = getCommit(remote, parameters, commitId)
-                if (commit != null && util.matchTags(commit, tags)) {
-                    commits.add(commitId to commit)
-                }
+            if (commitId == "") continue
+            // Skip entries whose names would be unsafe to interpolate into a
+            // shell command. We never want a malicious directory name on the
+            // remote to turn `ls` results into RCE.
+            if (!COMMIT_ID_PATTERN.matches(commitId)) {
+                continue
+            }
+            val commit = getCommit(remote, parameters, commitId)
+            if (commit != null && util.matchTags(commit, tags)) {
+                commits.add(commitId to commit)
             }
         }
 
@@ -214,15 +281,23 @@ class SshRemoteServer : RsyncRemote() {
         path: String,
         content: String,
     ) {
+        // Defense-in-depth: validate the path first so even shell metacharacters
+        // that the quoting below would handle never reach the remote. Then
+        // single-quote-escape the (now-safe) path to keep `sh -c` parsing the
+        // entire argument as a literal filename. Mirrors the ssh-remote-go
+        // approach where `cat > "<path>"` is built from a validated commitId.
+        validateRemotePath(path)
+        val escapedPath = shellSingleQuote(path)
         val file = createTempFile().toFile()
         file.deleteOnExit()
         try {
-            val args = buildSshCommand(remote, params, file, true, "sh", "-c", "cat > $path")
+            val args = buildSshCommand(remote, params, file, true, "sh", "-c", "cat > '$escapedPath'")
             val process = executor.start(*args.toTypedArray())
-            val writer = process.outputStream.bufferedWriter()
-            writer.write(content)
-            writer.close()
-            process.outputStream.close()
+            process.outputStream.use { out ->
+                out.bufferedWriter().use { writer ->
+                    writer.write(content)
+                }
+            }
             process.waitFor(10L, TimeUnit.SECONDS)
 
             if (process.isAlive) {
