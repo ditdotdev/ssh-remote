@@ -80,6 +80,53 @@ class SshRemoteServer : RsyncRemote() {
                 throw IllegalArgumentException("invalid remote path '$path': must match ${SAFE_PATH_PATTERN.pattern}")
             }
         }
+
+        /**
+         * Coerce a JSON-deserialized value into a [Boolean]. Map<String, Any>
+         * payloads can carry either a real [Boolean] (most parsers) or the
+         * literal strings `"true"`/`"false"` (some serializers). Anything else
+         * is rejected so a typo like `"yes"` does not silently disable a
+         * security control.
+         */
+        internal fun coerceBoolean(
+            prop: String,
+            value: Any,
+        ): Boolean =
+            when (value) {
+                is Boolean -> {
+                    value
+                }
+
+                is String -> {
+                    when (value.lowercase()) {
+                        "true" -> {
+                            true
+                        }
+
+                        "false" -> {
+                            false
+                        }
+
+                        else -> {
+                            throw IllegalArgumentException(
+                                "'$prop' must be a boolean (true/false), got '$value'",
+                            )
+                        }
+                    }
+                }
+
+                else -> {
+                    throw IllegalArgumentException("'$prop' must be a boolean, got ${value::class.simpleName}")
+                }
+            }
+
+        /**
+         * Default known_hosts path used when `knownHostsFile` is not explicitly
+         * configured on the remote. Mirrors OpenSSH's default of
+         * `~/.ssh/known_hosts`. The value is resolved at call time, not at class
+         * load, so test runners that override `user.home` continue to work.
+         */
+        internal fun defaultKnownHostsFile(): String = System.getProperty("user.home") + "/.ssh/known_hosts"
     }
 
     /**
@@ -95,18 +142,26 @@ class SshRemoteServer : RsyncRemote() {
             validated[prop] = value.toString()
         }
 
-        for (prop in listOf("password", "port", "keyFile")) {
+        for (prop in listOf("password", "port", "keyFile", "knownHostsFile", "skipHostCheck")) {
             val value = remote[prop] ?: continue
-            if (prop == "port") {
-                val port =
-                    when (value) {
-                        is Double -> value.toInt()
-                        is Int -> value
-                        else -> throw IllegalArgumentException("port must be a number or integer")
-                    }
-                validated[prop] = port
-            } else {
-                validated[prop] = value.toString()
+            when (prop) {
+                "port" -> {
+                    val port =
+                        when (value) {
+                            is Double -> value.toInt()
+                            is Int -> value
+                            else -> throw IllegalArgumentException("port must be a number or integer")
+                        }
+                    validated[prop] = port
+                }
+
+                "skipHostCheck" -> {
+                    validated[prop] = coerceBoolean(prop, value)
+                }
+
+                else -> {
+                    validated[prop] = value.toString()
+                }
             }
         }
 
@@ -192,8 +247,23 @@ class SshRemoteServer : RsyncRemote() {
             args.addAll(arrayOf("-p", remote["port"].toString()))
         }
 
-        args.addAll(arrayOf("-o", "StrictHostKeyChecking=no"))
-        args.addAll(arrayOf("-o", "UserKnownHostsFile=/dev/null"))
+        // Host-key verification policy (see issue #60 item #3):
+        // - Default (secure): StrictHostKeyChecking=yes + known_hosts lookup.
+        //   Unknown hosts cause ssh to abort with a "Host key verification
+        //   failed." error that we rewrite in [runSsh] with remediation steps.
+        // - Opt-out (`skipHostCheck=true`): preserves the pre-fix behavior of
+        //   silently accepting any host key. Intended for trusted networks /
+        //   CI where TOFU is acceptable.
+        val rawSkipHostCheck = remote["skipHostCheck"]
+        val skipHostCheck = rawSkipHostCheck != null && coerceBoolean("skipHostCheck", rawSkipHostCheck)
+        if (skipHostCheck) {
+            args.addAll(arrayOf("-o", "StrictHostKeyChecking=no"))
+            args.addAll(arrayOf("-o", "UserKnownHostsFile=/dev/null"))
+        } else {
+            val knownHostsFile = remote["knownHostsFile"]?.toString() ?: defaultKnownHostsFile()
+            args.addAll(arrayOf("-o", "StrictHostKeyChecking=yes"))
+            args.addAll(arrayOf("-o", "UserKnownHostsFile=$knownHostsFile"))
+        }
         if (includeAddress) {
             args.add("${remote["username"]}@${remote["address"]}")
         }
@@ -211,7 +281,36 @@ class SshRemoteServer : RsyncRemote() {
         file.deleteOnExit()
         try {
             val args = buildSshCommand(remote, parameters, file, true, *command)
-            return executor.exec(*args.toTypedArray())
+            try {
+                return executor.exec(*args.toTypedArray())
+            } catch (e: CommandException) {
+                // Translate the canonical OpenSSH "Host key verification
+                // failed." stderr into a CommandException whose `output` tells
+                // the operator exactly how to recover. Without this, callers
+                // see only `exit 255` and a one-line stderr that is easy to
+                // misdiagnose as a generic connection error.
+                if (e.output.contains("Host key verification failed")) {
+                    val host = remote["address"]?.toString() ?: "<host>"
+                    val knownHosts = remote["knownHostsFile"]?.toString() ?: defaultKnownHostsFile()
+                    val guidance =
+                        buildString {
+                            append(e.output.trimEnd())
+                            append("\n\n")
+                            append("Host '$host' is not in $knownHosts (or its key has changed). ")
+                            append("To accept the host, run:\n")
+                            append("    ssh-keyscan -H '$host' >> '$knownHosts'\n")
+                            append("Then verify the fingerprint out-of-band before retrying. ")
+                            append("To skip host-key checking entirely (NOT recommended outside ")
+                            append("trusted networks), set `skipHostCheck: true` on the remote.")
+                        }
+                    // e.message is the originating command string (set by
+                    // CommandException's primary constructor) and is never
+                    // null in practice; the `?: ""` is purely a Kotlin/Java
+                    // nullability bridge for Throwable.getMessage's `String?`.
+                    throw CommandException(e.message ?: "", e.exitCode, guidance)
+                }
+                throw e
+            }
         } finally {
             file.delete()
         }

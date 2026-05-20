@@ -174,13 +174,25 @@ class SshRemoteServerTest :
             key shouldBe "key"
         }
 
+        // The bulk of the legacy fixture-based tests below set `skipHostCheck=true`
+        // so they continue to exercise the pre-#60 command shape without having
+        // to mock a per-test `known_hosts` file. Tests that specifically
+        // exercise the new secure default live in the "Host-key verification"
+        // section further down.
+
         "build SSH command uses sshpass for password authentication" {
             val file =
                 kotlin.io.path
                     .createTempFile()
                     .toFile()
             try {
-                val command = server.buildSshCommand(emptyMap(), mapOf("password" to "password"), file, false)
+                val command =
+                    server.buildSshCommand(
+                        mapOf("skipHostCheck" to true),
+                        mapOf("password" to "password"),
+                        file,
+                        false,
+                    )
                 command shouldBe
                     listOf(
                         "sshpass",
@@ -204,7 +216,13 @@ class SshRemoteServerTest :
                     .createTempFile()
                     .toFile()
             try {
-                val command = server.buildSshCommand(emptyMap(), mapOf("key" to "key"), file, false)
+                val command =
+                    server.buildSshCommand(
+                        mapOf("skipHostCheck" to true),
+                        mapOf("key" to "key"),
+                        file,
+                        false,
+                    )
                 command shouldBe
                     listOf(
                         "ssh",
@@ -229,7 +247,7 @@ class SshRemoteServerTest :
             try {
                 val command =
                     server.buildSshCommand(
-                        mapOf("port" to 1234, "username" to "user", "address" to "host"),
+                        mapOf("port" to 1234, "username" to "user", "address" to "host", "skipHostCheck" to true),
                         mapOf("key" to "key"),
                         file,
                         true,
@@ -258,7 +276,12 @@ class SshRemoteServerTest :
 
         "run ssh command invokes executor correctly" {
             every { executor.exec(*anyVararg()) } returns ""
-            server.runSsh(mapOf("username" to "user", "address" to "host"), mapOf("key" to "key"), "ls", "-l")
+            server.runSsh(
+                mapOf("username" to "user", "address" to "host", "skipHostCheck" to true),
+                mapOf("key" to "key"),
+                "ls",
+                "-l",
+            )
             verify {
                 executor.exec(
                     "ssh",
@@ -365,7 +388,13 @@ class SshRemoteServerTest :
                 "{\"timestamp\":\"2019-09-20T13:45:37Z\"}"
             val result =
                 server.listCommits(
-                    mapOf("username" to "root", "password" to "password", "address" to "localhost", "path" to "/var/tmp"),
+                    mapOf(
+                        "username" to "root",
+                        "password" to "password",
+                        "address" to "localhost",
+                        "path" to "/var/tmp",
+                        "skipHostCheck" to true,
+                    ),
                     emptyMap(),
                     emptyList(),
                 )
@@ -425,7 +454,13 @@ class SshRemoteServerTest :
                 "{}"
             val result =
                 server.listCommits(
-                    mapOf("username" to "root", "password" to "password", "address" to "localhost", "path" to "/var/tmp"),
+                    mapOf(
+                        "username" to "root",
+                        "password" to "password",
+                        "address" to "localhost",
+                        "path" to "/var/tmp",
+                        "skipHostCheck" to true,
+                    ),
                     emptyMap(),
                     listOf("c" to null),
                 )
@@ -473,7 +508,13 @@ class SshRemoteServerTest :
 
             val result =
                 server.listCommits(
-                    mapOf("username" to "root", "password" to "password", "address" to "localhost", "path" to "/var/tmp"),
+                    mapOf(
+                        "username" to "root",
+                        "password" to "password",
+                        "address" to "localhost",
+                        "path" to "/var/tmp",
+                        "skipHostCheck" to true,
+                    ),
                     emptyMap(),
                     emptyList(),
                 )
@@ -648,7 +689,13 @@ class SshRemoteServerTest :
             } returns "{}"
             val result =
                 server.listCommits(
-                    mapOf("username" to "root", "password" to "password", "address" to "localhost", "path" to "/var/tmp"),
+                    mapOf(
+                        "username" to "root",
+                        "password" to "password",
+                        "address" to "localhost",
+                        "path" to "/var/tmp",
+                        "skipHostCheck" to true,
+                    ),
                     emptyMap(),
                     emptyList(),
                 )
@@ -742,6 +789,340 @@ class SshRemoteServerTest :
             shouldThrow<IllegalArgumentException> { SshRemoteServer.validateRemotePath("/tmp/foo;rm -rf /") }
             // Well-formed paths do not throw.
             SshRemoteServer.validateRemotePath("/var/tmp/commit/metadata.json")
+        }
+
+        // --- Host-key verification (issue #60 item #3) -------------------------
+        //
+        // Policy: default to verifying the remote host against a known_hosts file
+        // (`~/.ssh/known_hosts` unless `knownHostsFile` overrides it). Provide
+        // `skipHostCheck=true` as an explicit opt-out for trusted networks / CI.
+        // This replaces the prior unconditional `StrictHostKeyChecking=no` +
+        // `UserKnownHostsFile=/dev/null` (which is the textbook MITM footgun).
+
+        "build SSH command defaults to StrictHostKeyChecking=yes and user known_hosts" {
+            // No `skipHostCheck` set → secure default. The known_hosts path
+            // defaults to `~/.ssh/known_hosts`. We assert the exact options
+            // that go on the ssh command line.
+            val file =
+                kotlin.io.path
+                    .createTempFile()
+                    .toFile()
+            try {
+                val command = server.buildSshCommand(emptyMap(), mapOf("password" to "password"), file, false)
+                val defaultKnownHosts = System.getProperty("user.home") + "/.ssh/known_hosts"
+                command shouldBe
+                    listOf(
+                        "sshpass",
+                        "-f",
+                        file.path,
+                        "ssh",
+                        "-o",
+                        "StrictHostKeyChecking=yes",
+                        "-o",
+                        "UserKnownHostsFile=$defaultKnownHosts",
+                    )
+            } finally {
+                file.delete()
+            }
+        }
+
+        "build SSH command with skipHostCheck=true disables host-key verification" {
+            // Explicit opt-out: matches the pre-#60 production behavior.
+            val file =
+                kotlin.io.path
+                    .createTempFile()
+                    .toFile()
+            try {
+                val command =
+                    server.buildSshCommand(
+                        mapOf("skipHostCheck" to true),
+                        mapOf("password" to "password"),
+                        file,
+                        false,
+                    )
+                command shouldBe
+                    listOf(
+                        "sshpass",
+                        "-f",
+                        file.path,
+                        "ssh",
+                        "-o",
+                        "StrictHostKeyChecking=no",
+                        "-o",
+                        "UserKnownHostsFile=/dev/null",
+                    )
+            } finally {
+                file.delete()
+            }
+        }
+
+        "build SSH command with skipHostCheck=false uses secure defaults" {
+            val file =
+                kotlin.io.path
+                    .createTempFile()
+                    .toFile()
+            try {
+                val command =
+                    server.buildSshCommand(
+                        mapOf("skipHostCheck" to false),
+                        mapOf("password" to "password"),
+                        file,
+                        false,
+                    )
+                val defaultKnownHosts = System.getProperty("user.home") + "/.ssh/known_hosts"
+                command shouldBe
+                    listOf(
+                        "sshpass",
+                        "-f",
+                        file.path,
+                        "ssh",
+                        "-o",
+                        "StrictHostKeyChecking=yes",
+                        "-o",
+                        "UserKnownHostsFile=$defaultKnownHosts",
+                    )
+            } finally {
+                file.delete()
+            }
+        }
+
+        "build SSH command accepts knownHostsFile override" {
+            val file =
+                kotlin.io.path
+                    .createTempFile()
+                    .toFile()
+            try {
+                val command =
+                    server.buildSshCommand(
+                        mapOf("knownHostsFile" to "/etc/datadatdat/known_hosts"),
+                        mapOf("password" to "password"),
+                        file,
+                        false,
+                    )
+                command shouldBe
+                    listOf(
+                        "sshpass",
+                        "-f",
+                        file.path,
+                        "ssh",
+                        "-o",
+                        "StrictHostKeyChecking=yes",
+                        "-o",
+                        "UserKnownHostsFile=/etc/datadatdat/known_hosts",
+                    )
+            } finally {
+                file.delete()
+            }
+        }
+
+        "build SSH command coerces skipHostCheck string \"true\" to boolean true" {
+            // Provider configs may come from JSON where Map<String, Any> decodes
+            // booleans as Boolean OR (depending on serializer) as String. Both
+            // representations must produce the opt-out behavior.
+            val file =
+                kotlin.io.path
+                    .createTempFile()
+                    .toFile()
+            try {
+                val command =
+                    server.buildSshCommand(
+                        mapOf("skipHostCheck" to "true"),
+                        mapOf("password" to "password"),
+                        file,
+                        false,
+                    )
+                command.contains("StrictHostKeyChecking=no") shouldBe true
+                command.contains("UserKnownHostsFile=/dev/null") shouldBe true
+            } finally {
+                file.delete()
+            }
+        }
+
+        "build SSH command coerces skipHostCheck string \"false\" to boolean false" {
+            val file =
+                kotlin.io.path
+                    .createTempFile()
+                    .toFile()
+            try {
+                val command =
+                    server.buildSshCommand(
+                        mapOf("skipHostCheck" to "false"),
+                        mapOf("password" to "password"),
+                        file,
+                        false,
+                    )
+                command.contains("StrictHostKeyChecking=yes") shouldBe true
+                command.contains("UserKnownHostsFile=/dev/null") shouldBe false
+            } finally {
+                file.delete()
+            }
+        }
+
+        "validate remote accepts skipHostCheck Boolean true" {
+            val result =
+                server.validateRemote(
+                    mapOf(
+                        "username" to "user",
+                        "path" to "/path",
+                        "address" to "host",
+                        "skipHostCheck" to true,
+                    ),
+                )
+            result["skipHostCheck"] shouldBe true
+        }
+
+        "validate remote accepts skipHostCheck Boolean false" {
+            val result =
+                server.validateRemote(
+                    mapOf(
+                        "username" to "user",
+                        "path" to "/path",
+                        "address" to "host",
+                        "skipHostCheck" to false,
+                    ),
+                )
+            result["skipHostCheck"] shouldBe false
+        }
+
+        "validate remote accepts skipHostCheck String \"true\"" {
+            val result =
+                server.validateRemote(
+                    mapOf(
+                        "username" to "user",
+                        "path" to "/path",
+                        "address" to "host",
+                        "skipHostCheck" to "true",
+                    ),
+                )
+            result["skipHostCheck"] shouldBe true
+        }
+
+        "validate remote accepts skipHostCheck String \"false\"" {
+            val result =
+                server.validateRemote(
+                    mapOf(
+                        "username" to "user",
+                        "path" to "/path",
+                        "address" to "host",
+                        "skipHostCheck" to "false",
+                    ),
+                )
+            result["skipHostCheck"] shouldBe false
+        }
+
+        "validate remote rejects skipHostCheck with non-boolean value" {
+            shouldThrow<IllegalArgumentException> {
+                server.validateRemote(
+                    mapOf(
+                        "username" to "user",
+                        "path" to "/path",
+                        "address" to "host",
+                        "skipHostCheck" to "yes",
+                    ),
+                )
+            }
+        }
+
+        "validate remote accepts knownHostsFile property" {
+            val result =
+                server.validateRemote(
+                    mapOf(
+                        "username" to "user",
+                        "path" to "/path",
+                        "address" to "host",
+                        "knownHostsFile" to "/etc/known_hosts",
+                    ),
+                )
+            result["knownHostsFile"] shouldBe "/etc/known_hosts"
+        }
+
+        "run ssh translates host-key verification failure into actionable error" {
+            // When ssh exits with the canonical "Host key verification failed."
+            // message, we want callers to see a wrapped error that names the
+            // affected host AND tells them how to recover.
+            every {
+                executor.exec(*anyVararg())
+            } throws CommandException("", 255, "Host key verification failed.\r\n")
+            val ex =
+                shouldThrow<CommandException> {
+                    server.runSsh(
+                        mapOf("username" to "root", "address" to "remote.example.com"),
+                        mapOf("password" to "p"),
+                        "ls",
+                    )
+                }
+            // The original CommandException is preserved but its `output` is
+            // augmented with remediation guidance the operator can act on.
+            ex.output.contains("ssh-keyscan") shouldBe true
+            ex.output.contains("remote.example.com") shouldBe true
+            ex.output.contains("skipHostCheck") shouldBe true
+        }
+
+        "run ssh host-key error references custom knownHostsFile path" {
+            // When `knownHostsFile` is configured, the remediation message must
+            // tell the operator to write to *that* file, not the default. Also
+            // exercises the path where CommandException.message is null
+            // (e.message ?: "ssh failed").
+            every { executor.exec(*anyVararg()) } throws CommandException("", 255, "Host key verification failed.")
+            val ex =
+                shouldThrow<CommandException> {
+                    server.runSsh(
+                        mapOf(
+                            "username" to "root",
+                            "address" to "ci.example.com",
+                            "knownHostsFile" to "/etc/datadatdat/known_hosts",
+                        ),
+                        mapOf("password" to "p"),
+                        "ls",
+                    )
+                }
+            ex.output.contains("/etc/datadatdat/known_hosts") shouldBe true
+            ex.output.contains("ci.example.com") shouldBe true
+        }
+
+        "run ssh host-key error tolerates missing address" {
+            // Pathological case: address absent from remote map. We still
+            // produce a usable error rather than throwing NullPointerException.
+            every { executor.exec(*anyVararg()) } throws CommandException("", 255, "Host key verification failed.")
+            shouldThrow<CommandException> {
+                server.runSsh(
+                    // No "address" key. getSshAuth still works because password
+                    // is supplied; the failing path is purely the error
+                    // wrapper.
+                    mapOf("username" to "root"),
+                    mapOf("password" to "p"),
+                    "ls",
+                )
+            }
+        }
+
+        "coerceBoolean rejects non-boolean non-string values" {
+            // Direct unit test for the `else` branch of coerceBoolean — types
+            // like Int or Double cannot be silently coerced.
+            shouldThrow<IllegalArgumentException> {
+                SshRemoteServer.coerceBoolean("skipHostCheck", 1)
+            }
+            shouldThrow<IllegalArgumentException> {
+                SshRemoteServer.coerceBoolean("skipHostCheck", 0.0)
+            }
+        }
+
+        "run ssh leaves unrelated failures untouched" {
+            // Only the host-key error gets the special treatment; regular
+            // failures must surface verbatim so callers like getCommit can
+            // pattern-match on "No such file or directory" the way they always
+            // have.
+            every { executor.exec(*anyVararg()) } throws CommandException("", 1, "No such file or directory")
+            val ex =
+                shouldThrow<CommandException> {
+                    server.runSsh(
+                        mapOf("username" to "root", "address" to "host"),
+                        mapOf("password" to "p"),
+                        "cat",
+                        "/missing",
+                    )
+                }
+            ex.output shouldBe "No such file or directory"
         }
 
         "posix permissions exception is swallowed when not supported" {
