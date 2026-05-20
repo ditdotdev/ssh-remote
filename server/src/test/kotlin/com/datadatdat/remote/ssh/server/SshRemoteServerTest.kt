@@ -1125,6 +1125,178 @@ class SshRemoteServerTest :
             ex.output shouldBe "No such file or directory"
         }
 
+        // --- Rsync data-transfer host-key plumbing (issue #63) -----------------
+        //
+        // PR #62 made the metadata-reading SSH path (runSsh / writeFileSsh)
+        // default-secure. The data-transfer path goes through `getRsync` →
+        // `RsyncExecutor.run` and historically didn't respect the same
+        // `skipHostCheck` / `knownHostsFile` properties: rsync's `-e ssh`
+        // invocation was TOFU regardless of the operator's choice.
+        //
+        // These tests drive `RsyncExecutor.run()` end-to-end with a stubbed
+        // `CommandExecutor` so we can capture the *actual* rsync command line
+        // and assert that the SSH options inside `-e` reflect the remote's
+        // host-key policy. Asserting on the constructor property alone would
+        // not catch a regression that forgot to thread the field into the
+        // rsync invocation; running through `run()` does.
+        //
+        // Helper: drive getRsync → run() and capture executor.start args.
+        fun captureRsyncArgs(remote: Map<String, Any>): Array<String> {
+            val capturingExecutor = mockk<CommandExecutor>(relaxed = true)
+            val captured = slot<Array<String>>()
+            val proc = mockk<Process>(relaxed = true)
+            // Empty stdout makes processOutput return immediately; the
+            // missing-summary check then throws CommandException, which we
+            // ignore. By this point the args have already been captured.
+            every { proc.inputStream } returns java.io.ByteArrayInputStream(ByteArray(0))
+            every { proc.errorStream } returns java.io.ByteArrayInputStream(ByteArray(0))
+            every { proc.waitFor() } returns 0
+            every { proc.exitValue() } returns 0
+            every { capturingExecutor.start(*varargAll { true }) } answers {
+                @Suppress("UNCHECKED_CAST")
+                captured.captured = invocation.args[0] as Array<String>
+                proc
+            }
+            every { capturingExecutor.checkResult(any()) } just Runs
+
+            val op =
+                RemoteOperation(
+                    updateProgress = { _: RemoteProgress, _: String?, _: Int? -> Unit },
+                    remote = remote,
+                    parameters = mapOf("password" to "password"),
+                    operationId = "operation",
+                    commitId = "commit",
+                    commit = null,
+                    type = RemoteOperationType.PULL, // PULL skips the mkdir runSsh call
+                )
+            val rsync = server.getRsync(op, null, "/src", "user@host:/dst", capturingExecutor)
+            try {
+                rsync.run()
+            } catch (_: CommandException) {
+                // Expected: synthetic empty stdout means the run can't find
+                // its summary line. The args are still captured by then.
+            }
+            return captured.captured
+        }
+
+        // Helper: extract the `-e <ssh-command>` argument so individual tests
+        // can assert on the SSH options independently of rsync's own flags.
+        fun sshOptionString(args: Array<String>): String = args[args.indexOf("-e") + 1]
+
+        "rsync command uses StrictHostKeyChecking=yes by default" {
+            // No `skipHostCheck` on the remote → secure default. Assert on
+            // the actual rsync `-e` payload so this catches both the
+            // constructor plumbing AND the SDK's `run()` forwarding it into
+            // the rsync command.
+            val args =
+                captureRsyncArgs(
+                    mapOf("username" to "user", "address" to "host", "path" to "/path"),
+                )
+            val sshOpts = sshOptionString(args)
+            sshOpts.contains("StrictHostKeyChecking=yes") shouldBe true
+            sshOpts.contains("StrictHostKeyChecking=no") shouldBe false
+            sshOpts.contains("UserKnownHostsFile=/dev/null") shouldBe false
+        }
+
+        "rsync command uses StrictHostKeyChecking=no when skipHostCheck=true" {
+            // Explicit opt-out must reach the rsync data-transfer path, not
+            // just the metadata path.
+            val args =
+                captureRsyncArgs(
+                    mapOf(
+                        "username" to "user",
+                        "address" to "host",
+                        "path" to "/path",
+                        "skipHostCheck" to true,
+                    ),
+                )
+            val sshOpts = sshOptionString(args)
+            sshOpts.contains("StrictHostKeyChecking=no") shouldBe true
+            sshOpts.contains("UserKnownHostsFile=/dev/null") shouldBe true
+            sshOpts.contains("StrictHostKeyChecking=yes") shouldBe false
+        }
+
+        "rsync command threads knownHostsFile override end-to-end" {
+            // The `knownHostsFile` property must land in the rsync `-e` ssh
+            // payload's `UserKnownHostsFile` option, not just in the SDK
+            // constructor.
+            val args =
+                captureRsyncArgs(
+                    mapOf(
+                        "username" to "user",
+                        "address" to "host",
+                        "path" to "/path",
+                        "knownHostsFile" to "/etc/datadatdat/known_hosts",
+                    ),
+                )
+            val sshOpts = sshOptionString(args)
+            sshOpts.contains("StrictHostKeyChecking=yes") shouldBe true
+            sshOpts.contains("UserKnownHostsFile=/etc/datadatdat/known_hosts") shouldBe true
+        }
+
+        "rsync command honors skipHostCheck=false explicit secure default" {
+            // Spelled-out `false` must behave identically to the unset case.
+            val args =
+                captureRsyncArgs(
+                    mapOf(
+                        "username" to "user",
+                        "address" to "host",
+                        "path" to "/path",
+                        "skipHostCheck" to false,
+                    ),
+                )
+            val sshOpts = sshOptionString(args)
+            sshOpts.contains("StrictHostKeyChecking=yes") shouldBe true
+            sshOpts.contains("UserKnownHostsFile=/dev/null") shouldBe false
+        }
+
+        "get rsync passes skipHostCheck and knownHostsFile to RsyncExecutor" {
+            // Lower-level companion assertion: independent of the rsync
+            // invocation, the constructed executor must expose the values the
+            // SDK will later forward into `run()`. Caught a class of bug where
+            // the args were dropped on the floor before reaching the
+            // executor.
+            val op =
+                RemoteOperation(
+                    updateProgress = { _: RemoteProgress, _: String?, _: Int? -> Unit },
+                    remote =
+                        mapOf(
+                            "username" to "user",
+                            "address" to "host",
+                            "path" to "/path",
+                            "skipHostCheck" to true,
+                            "knownHostsFile" to "/etc/known_hosts",
+                        ),
+                    parameters = mapOf("password" to "password"),
+                    operationId = "operation",
+                    commitId = "commit",
+                    commit = null,
+                    type = RemoteOperationType.PULL,
+                )
+            val rsync = server.getRsync(op, null, "/src", "user@host:/dst", executor)
+            rsync.skipHostCheck shouldBe true
+            rsync.knownHostsFile shouldBe "/etc/known_hosts"
+        }
+
+        "get rsync defaults skipHostCheck to false for unset remote" {
+            // No `skipHostCheck` property → secure default (false) gets
+            // forwarded to the executor. Mirrors the metadata path's
+            // default-secure behavior from PR #62.
+            val op =
+                RemoteOperation(
+                    updateProgress = { _: RemoteProgress, _: String?, _: Int? -> Unit },
+                    remote = mapOf("username" to "user", "address" to "host", "path" to "/path"),
+                    parameters = mapOf("password" to "password"),
+                    operationId = "operation",
+                    commitId = "commit",
+                    commit = null,
+                    type = RemoteOperationType.PULL,
+                )
+            val rsync = server.getRsync(op, null, "/src", "user@host:/dst", executor)
+            rsync.skipHostCheck shouldBe false
+            rsync.knownHostsFile shouldBe null
+        }
+
         "posix permissions exception is swallowed when not supported" {
             // Exercises the UnsupportedOperationException catch on Windows-like
             // file systems (line ~127). We mock Files.setPosixFilePermissions to

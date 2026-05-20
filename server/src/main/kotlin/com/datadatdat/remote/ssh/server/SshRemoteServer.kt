@@ -442,6 +442,24 @@ class SshRemoteServer : RsyncRemote() {
         }
 
         val (password, key) = getSshAuth(operation.remote, operation.parameters)
+
+        // Thread `skipHostCheck` and `knownHostsFile` through to the rsync
+        // data-transfer SSH invocation. Issue #62 made the metadata-reading
+        // SSH path (runSsh / writeFileSsh) default-secure; without this
+        // plumbing, the rsync data path silently used the SDK's default
+        // (secure since remote-sdk PR #47, but with no opt-out reachable from
+        // the consumer). The two paths must respect the same operator choice
+        // so a `skipHostCheck=true` remote works end-to-end and, more
+        // importantly, a default remote enforces host-key verification on
+        // *both* paths.
+        //
+        // `validateRemote` has already coerced `skipHostCheck` to a Boolean
+        // and rejected any unknown property values, so we can read it
+        // directly here without a second coercion. An unset property leaves
+        // `skipHostCheck = false`, which is the secure default.
+        val skipHostCheck = operation.remote["skipHostCheck"] as Boolean? ?: false
+        val knownHostsFile = operation.remote["knownHostsFile"] as String?
+
         return RsyncExecutor(
             operation.updateProgress,
             operation.remote["port"] as Int?,
@@ -450,6 +468,8 @@ class SshRemoteServer : RsyncRemote() {
             "$src/",
             dst,
             executor,
+            skipHostCheck = skipHostCheck,
+            knownHostsFile = knownHostsFile,
         )
     }
 

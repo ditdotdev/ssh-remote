@@ -73,10 +73,11 @@ upgrade without service interruption:
    old behavior, then incrementally migrate hosts onto `known_hosts` and
    remove the flag.
 
-Note: the rsync data-transfer path (`RsyncExecutor`) ships in `remote-sdk`
-and currently always disables host-key checking; tracking issue forthcoming.
-The `skipHostCheck` setting here only governs the metadata-reading SSH
-connections in this provider.
+As of issue #63, `skipHostCheck` and `knownHostsFile` govern **both** the
+metadata-reading SSH connections in this provider **and** the rsync
+data-transfer path in `remote-sdk` — so a default remote enforces
+`StrictHostKeyChecking=yes` end-to-end, and `skipHostCheck: true` is honored
+on both paths consistently.
 
 ## Contributing
 
