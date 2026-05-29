@@ -11,6 +11,7 @@ on: create
 
 permissions:
   contents: read
+  pull-requests: write
 
 jobs:
   health:
