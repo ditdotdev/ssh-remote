@@ -1,18 +1,18 @@
 /*
- * Copyright Datadatdat.
+ * Copyright Dit.
  */
 
-package com.datadatdat.remote.ssh.server
+package dev.dit.remote.ssh.server
 
-import com.datadatdat.remote.RemoteOperation
-import com.datadatdat.remote.RemoteOperationType
-import com.datadatdat.remote.RemoteServerUtil
-import com.datadatdat.remote.rsync.RsyncExecutor
-import com.datadatdat.remote.rsync.RsyncRemote
-import com.datadatdat.shell.CommandException
-import com.datadatdat.shell.CommandExecutor
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
+import dev.dit.remote.RemoteOperation
+import dev.dit.remote.RemoteOperationType
+import dev.dit.remote.RemoteServerUtil
+import dev.dit.remote.rsync.RsyncExecutor
+import dev.dit.remote.rsync.RsyncRemote
+import dev.dit.shell.CommandException
+import dev.dit.shell.CommandExecutor
 import java.io.File
 import java.io.IOException
 import java.nio.file.Files
