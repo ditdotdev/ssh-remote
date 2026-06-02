@@ -1,7 +1,7 @@
-# Datadatdat SSH Provider
+# Dit SSH Provider
 
-This is a basic Datadatdat SSH provider. For more information on how it works,
-consult the datadatdat documentation.
+This is a basic Dit SSH provider. For more information on how it works,
+consult the dit documentation.
 
 ## Remote configuration
 
@@ -39,7 +39,7 @@ ssh-keygen -lf ~/.ssh/known_hosts | grep remote.example.com
 To override the file location for a single remote:
 
 ```yaml
-knownHostsFile: /etc/datadatdat/known_hosts
+knownHostsFile: /etc/ditdotdev/known_hosts
 ```
 
 ### Opting out (`skipHostCheck`)
@@ -53,7 +53,7 @@ runners, trusted private networks, ephemeral test hosts — set
 remote:
   username: ci
   address: build-host
-  path: /var/datadatdat
+  path: /var/dit
   skipHostCheck: true
 ```
 
@@ -81,13 +81,13 @@ on both paths consistently.
 
 ## Contributing
 
-This project follows the Datadatdat community best practices:
+This project follows the Dit community best practices:
 
-  * [Contributing](https://github.com/datadatdat/.github/blob/master/CONTRIBUTING.md)
-  * [Code of Conduct](https://github.com/datadatdat/.github/blob/master/CODE_OF_CONDUCT.md)
-  * [Community Support](https://github.com/datadatdat/.github/blob/master/SUPPORT.md)
+  * [Contributing](https://github.com/ditdotdev/.github/blob/master/CONTRIBUTING.md)
+  * [Code of Conduct](https://github.com/ditdotdev/.github/blob/master/CODE_OF_CONDUCT.md)
+  * [Community Support](https://github.com/ditdotdev/.github/blob/master/SUPPORT.md)
 
-It is maintained by the [Datadatdat community maintainers](https://github.com/datadatdat/.github/blob/master/MAINTAINERS.md)
+It is maintained by the [Dit community maintainers](https://github.com/ditdotdev/.github/blob/master/MAINTAINERS.md)
 
 For more information on how it works, and how to build and release new versions,
 see the [Development Guidelines](DEVELOPING.md).

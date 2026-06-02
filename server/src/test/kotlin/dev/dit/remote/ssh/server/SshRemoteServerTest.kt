@@ -1,14 +1,14 @@
 /*
- * Copyright Datadatdat.
+ * Copyright Dit.
  */
 
-package com.datadatdat.remote.ssh.server
+package dev.dit.remote.ssh.server
 
-import com.datadatdat.remote.RemoteOperation
-import com.datadatdat.remote.RemoteOperationType
-import com.datadatdat.remote.RemoteProgress
-import com.datadatdat.shell.CommandException
-import com.datadatdat.shell.CommandExecutor
+import dev.dit.remote.RemoteOperation
+import dev.dit.remote.RemoteOperationType
+import dev.dit.remote.RemoteProgress
+import dev.dit.shell.CommandException
+import dev.dit.shell.CommandExecutor
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.core.test.TestCaseOrder
@@ -894,7 +894,7 @@ class SshRemoteServerTest :
             try {
                 val command =
                     server.buildSshCommand(
-                        mapOf("knownHostsFile" to "/etc/datadatdat/known_hosts"),
+                        mapOf("knownHostsFile" to "/etc/ditdotdev/known_hosts"),
                         mapOf("password" to "password"),
                         file,
                         false,
@@ -908,7 +908,7 @@ class SshRemoteServerTest :
                         "-o",
                         "StrictHostKeyChecking=yes",
                         "-o",
-                        "UserKnownHostsFile=/etc/datadatdat/known_hosts",
+                        "UserKnownHostsFile=/etc/ditdotdev/known_hosts",
                     )
             } finally {
                 file.delete()
@@ -1070,13 +1070,13 @@ class SshRemoteServerTest :
                         mapOf(
                             "username" to "root",
                             "address" to "ci.example.com",
-                            "knownHostsFile" to "/etc/datadatdat/known_hosts",
+                            "knownHostsFile" to "/etc/ditdotdev/known_hosts",
                         ),
                         mapOf("password" to "p"),
                         "ls",
                     )
                 }
-            ex.output.contains("/etc/datadatdat/known_hosts") shouldBe true
+            ex.output.contains("/etc/ditdotdev/known_hosts") shouldBe true
             ex.output.contains("ci.example.com") shouldBe true
         }
 
@@ -1226,12 +1226,12 @@ class SshRemoteServerTest :
                         "username" to "user",
                         "address" to "host",
                         "path" to "/path",
-                        "knownHostsFile" to "/etc/datadatdat/known_hosts",
+                        "knownHostsFile" to "/etc/ditdotdev/known_hosts",
                     ),
                 )
             val sshOpts = sshOptionString(args)
             sshOpts.contains("StrictHostKeyChecking=yes") shouldBe true
-            sshOpts.contains("UserKnownHostsFile=/etc/datadatdat/known_hosts") shouldBe true
+            sshOpts.contains("UserKnownHostsFile=/etc/ditdotdev/known_hosts") shouldBe true
         }
 
         "rsync command honors skipHostCheck=false explicit secure default" {
