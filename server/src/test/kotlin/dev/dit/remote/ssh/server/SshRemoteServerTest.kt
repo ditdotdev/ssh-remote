@@ -47,7 +47,7 @@ class SshRemoteServerTest :
 
         val operation =
             RemoteOperation(
-                updateProgress = { _: RemoteProgress, _: String?, _: Int? -> Unit },
+                updateProgress = { _: RemoteProgress, _: String?, _: Int? -> },
                 remote = mapOf("username" to "user", "address" to "host", "path" to "/path"),
                 parameters = mapOf("password" to "password"),
                 operationId = "operation",
@@ -580,7 +580,7 @@ class SshRemoteServerTest :
         "get rsync does not create directory on pull" {
             val pullOperation =
                 RemoteOperation(
-                    updateProgress = { _: RemoteProgress, _: String?, _: Int? -> Unit },
+                    updateProgress = { _: RemoteProgress, _: String?, _: Int? -> },
                     remote = mapOf("username" to "user", "address" to "host", "path" to "/path"),
                     parameters = mapOf("password" to "password"),
                     operationId = "operation",
@@ -1161,7 +1161,7 @@ class SshRemoteServerTest :
 
             val op =
                 RemoteOperation(
-                    updateProgress = { _: RemoteProgress, _: String?, _: Int? -> Unit },
+                    updateProgress = { _: RemoteProgress, _: String?, _: Int? -> },
                     remote = remote,
                     parameters = mapOf("password" to "password"),
                     operationId = "operation",
@@ -1258,7 +1258,7 @@ class SshRemoteServerTest :
             // executor.
             val op =
                 RemoteOperation(
-                    updateProgress = { _: RemoteProgress, _: String?, _: Int? -> Unit },
+                    updateProgress = { _: RemoteProgress, _: String?, _: Int? -> },
                     remote =
                         mapOf(
                             "username" to "user",
@@ -1284,7 +1284,7 @@ class SshRemoteServerTest :
             // default-secure behavior from PR #62.
             val op =
                 RemoteOperation(
-                    updateProgress = { _: RemoteProgress, _: String?, _: Int? -> Unit },
+                    updateProgress = { _: RemoteProgress, _: String?, _: Int? -> },
                     remote = mapOf("username" to "user", "address" to "host", "path" to "/path"),
                     parameters = mapOf("password" to "password"),
                     operationId = "operation",
