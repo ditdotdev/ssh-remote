@@ -21,7 +21,7 @@ repositories {
 dependencies {
 	implementation(kotlin("stdlib"))
 	implementation(kotlin("reflect"))
-	implementation("dev.dit:remote-sdk:1.9.3")
+	implementation("dev.dit:remote-sdk:1.9.5")
 	implementation("dev.dit:command-executor:1.9.5")
 	implementation("com.google.code.gson:gson:2.14.0")
 	testImplementation("io.kotest:kotest-runner-junit5:6.1.11")
