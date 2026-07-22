@@ -21,7 +21,7 @@ dependencies {
 	implementation(kotlin("stdlib"))
 	implementation(kotlin("reflect"))
 	implementation("dev.dit:remote-sdk:1.9.8")
-	implementation("dev.dit:command-executor:1.9.8")
+	implementation("dev.dit:command-executor:1.10.0")
 	implementation("com.google.code.gson:gson:2.14.0")
 	testImplementation("io.kotest:kotest-runner-junit5:6.2.3")
 	testImplementation("io.kotest:kotest-assertions-core:6.2.3")
