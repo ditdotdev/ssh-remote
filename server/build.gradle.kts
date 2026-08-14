@@ -23,8 +23,8 @@ dependencies {
 	implementation("dev.dit:remote-sdk:1.10.1")
 	implementation("dev.dit:command-executor:1.10.1")
 	implementation("com.google.code.gson:gson:2.14.0")
-	testImplementation("io.kotest:kotest-runner-junit5:6.2.3")
-	testImplementation("io.kotest:kotest-assertions-core:6.2.3")
+	testImplementation("io.kotest:kotest-runner-junit5:6.2.4")
+	testImplementation("io.kotest:kotest-assertions-core:6.2.4")
 	testImplementation("io.mockk:mockk:1.14.9")
 	
 	// Force kotlin-reflect to match Kotlin version
