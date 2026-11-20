@@ -22,7 +22,7 @@ dependencies {
 	implementation("dev.dit:remote-sdk:1.10.4")
 	implementation("dev.dit:command-executor:1.10.4")
 	implementation("com.google.code.gson:gson:2.15.0")
-	testImplementation("io.kotest:kotest-runner-junit5:6.2.6")
+	testImplementation("io.kotest:kotest-runner-junit5:6.2.7")
 	testImplementation("io.kotest:kotest-assertions-core:6.2.7")
 	testImplementation("io.mockk:mockk:1.14.9")
 	
